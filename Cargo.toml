@@ -1,0 +1,14 @@
+[package]
+name = "crawle-rs"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+html5ever = "0.27.0"
+markup5ever_rcdom = "0.3.0"
+reqwest = { version = "0.12.4", features = ["json", "socks"] }
+tendril = "0.4.3"
+tokio = { version = "1.38.0", features = ["full"] }
+tokio-macros = "2.3.0"
