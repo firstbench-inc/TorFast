@@ -1,7 +1,7 @@
 // src/main.rs
 
 use lol_html::{HtmlRewriter, Settings, element, text};
-use lol_html::html_content::ContentType;
+//use lol_html::html_content::ContentType;
 fn main() {
     let html = r#"
         <html>
@@ -11,35 +11,35 @@ fn main() {
             <body>
                 <h1>Hello, world!</h1>
                 <p>This is a paragraph.</p>
+                <a href="https://example.com">Example</a>
+                <a href="https://rust-lang.org">Rust</a>
             </body>
         </html>
     "#;
 
-    let mut output = vec![];
+    let mut hrefs = vec![];
 
     {
         let mut rewriter = HtmlRewriter::new(
             Settings {
                 element_content_handlers: vec![
-                    element!("h1", |el| {
-                        el.set_inner_content("whomp whomp",ContentType::Text);
-                        Ok(())
-                    }),
-                    text!("p", |txt| {
-                        if !txt.last_in_text_node(){
-                            txt.replace("Bar", ContentType::Text);
+                    element!("a[href]", |el| {
+                        if let Some(href) = el.get_attribute("href") {
+                            hrefs.push(href);
                         }
                         Ok(())
                     }),
                 ],
                 ..Settings::default()
             },
-            |c: &[u8]| output.extend_from_slice(c),
+            |_: &[u8]| {},
         );
 
         rewriter.write(html.as_bytes()).unwrap();
         rewriter.end().unwrap();
     }
 
-    println!("{}", String::from_utf8(output).unwrap());
+    for href in hrefs {
+        println!("{}", href);
+    }
 }
