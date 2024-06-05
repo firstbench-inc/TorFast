@@ -1,6 +1,8 @@
 mod tests;
 mod parser;
 mod fetcher;
+mod parser2;
+
 
 use tokio;
 extern crate markup5ever_rcdom as rcdom;

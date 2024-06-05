@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 html5ever = "0.27.0"
+lol_html = "1.2.1"
 markup5ever_rcdom = "0.3.0"
 reqwest = { version = "0.12.4", features = ["json", "socks"] }
 tendril = "0.4.3"
