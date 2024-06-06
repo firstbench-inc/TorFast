@@ -4,8 +4,7 @@ use lol_html::{HtmlRewriter, Settings, element, text};
 //use lol_html::html_content::ContentType;
 fn extract_hrefs(html: &str) -> Vec<String> {
     let mut hrefs = vec![];
-
-    {
+ {
         let mut rewriter = HtmlRewriter::new(
             Settings {
                 element_content_handlers: vec![
