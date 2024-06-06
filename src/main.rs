@@ -1,6 +1,8 @@
 mod tests;
 mod parser;
 mod fetcher;
+mod parser2;
+
 
 use parser::extract_tags;
 use tokio;
