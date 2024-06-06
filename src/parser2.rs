@@ -2,21 +2,7 @@
 
 use lol_html::{HtmlRewriter, Settings, element, text};
 //use lol_html::html_content::ContentType;
-fn main() {
-    let html = r#"
-        <html>
-            <head>
-                <title>Test</title>
-            </head>
-            <body>
-                <h1>Hello, world!</h1>
-                <p>This is a paragraph.</p>
-                <a href="https://example.com">Example</a>
-                <a href="https://rust-lang.org">Rust</a>
-            </body>
-        </html>
-    "#;
-
+fn extract_hrefs(html: &str) -> Vec<String> {
     let mut hrefs = vec![];
 
     {
@@ -39,7 +25,24 @@ fn main() {
         rewriter.end().unwrap();
     }
 
-    for href in hrefs {
-        println!("{}", href);
-    }
+    hrefs
+}
+
+
+fn main() {
+    let html = r#"
+        <html>
+            <head>
+                <title>Test</title>
+            </head>
+            <body>
+                <h1>Hello, world!</h1>
+                <p>This is a paragraph.</p>
+                <a href="https://example.com">Example</a>
+                <a href="https://rust-lang.org">Rust</a>
+            </body>
+        </html>
+    "#;
+
+   
 }
