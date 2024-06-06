@@ -233,6 +233,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "fastbloom"
+version = "0.7.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8c016adea24b4c9c6931b5d3560995d8d4fd3db2ac06f017d3922dd45e6ccbd9"
+dependencies = [
+ "getrandom 0.2.15",
+ "rand 0.8.5",
+ "siphasher 1.0.1",
+ "wide",
+]
+
+[[package]]
 name = "fastrand"
 version = "2.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -899,7 +911,7 @@ version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c00cf8b9eafe68dde5e9eaa2cef8ee84a9336a47d566ec55ca16589633b65af7"
 dependencies = [
- "siphasher",
+ "siphasher 0.3.11",
 ]
 
 [[package]]

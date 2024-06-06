@@ -2,7 +2,7 @@ mod tests;
 mod parser;
 mod fetcher;
 mod parser2;
-
+use std::collections::HashMap;
 
 use parser::extract_tags;
 use tokio;
@@ -67,6 +67,7 @@ async fn main() -> Result<(), reqwest::Error> {
 }
 
 
+
 pub async fn start_crawler(to_visit: Vec<&str>) -> Result<(), reqwest::Error> {
     let proxy = reqwest::Proxy::all("socks5h://127.0.0.1:9050").expect("tor proxy should be there");
     let client = reqwest::Client::builder()
@@ -85,6 +86,40 @@ pub async fn start_crawler(to_visit: Vec<&str>) -> Result<(), reqwest::Error> {
         println!("sent resp to {}", seed);
         let t = res.text().await?;
         println!("{:?}", t);
+
+        let title = extract_title(&t);
+
+        let mut page_data = HashMap::new();
+        page_data.insert("link".to_string(), seed.to_string());
+        page_data.insert("content".to_string(), t.clone());
+        if let Some(title_str) = title {
+            page_data.insert("title".to_string(), title_str);
+        }
+
+        post_url_data(&client, &page_data).await?;
     }
     Ok(())
+
+}
+async fn post_url_data(client: &reqwest::Client, data: &HashMap<String, String>) -> Result<(), reqwest::Error> {
+    let res = client
+        .post("http://127.0.0.1:9200/logs/_doc")
+        .json(data)
+        .send()
+        .await?;
+    println!("Posted data: {:?}", res);
+    Ok(())
+}
+fn extract_title(html: &str) -> Option<String> {
+    let dom = html5ever::parse_document(RcDom::default(), Default::default())
+        .from_utf8()
+        .read_from(&mut html.as_bytes())
+        .unwrap();
+
+    let document = dom.document;
+    let mut title = None;
+
+    parser::extract_tags(document, "title", &mut title);
+
+    title
 }
