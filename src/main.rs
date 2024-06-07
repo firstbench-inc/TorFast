@@ -86,11 +86,21 @@ pub async fn start_crawler(
 
     let mut url = String::new();
     loop {
+        println!("meow");
         url = match to_visit.pop_front() {
             Some(url) => url,
             None => panic!("seedlist exhausted"),
         };
-        let res = client.get(url.clone()).send().await?;
+        let res;
+        match client.get(url.clone()).send().await {
+            Ok(resp) => {
+                res = resp;
+            }
+            Err(_) => {
+                println!("get req failed for {}", url);
+                continue;
+            },
+        }
         let t = res.text().await?;
 
         let title = extract_title(&t);
