@@ -27,7 +27,7 @@ pub fn extract_a_tags(handle: Handle, tags: &mut Vec<String>) {
 }
 
 pub fn extract_tags<S: Into<&'static str>>(
-    handle: Handle,
+    handle: &Handle,
     tag: S,
     tags: &mut Vec<String>,
 ) {
@@ -42,13 +42,13 @@ pub fn extract_tags<S: Into<&'static str>>(
             if &name.local == tag {
                 attrs.borrow().iter().for_each(|attr| {
                     tags.push(attr.value.to_string());
-                    println!("{}", attr.value);
+                    // println!("{}", attr.value);
                 });
             }
         }
         _ => {}
     }
     for child in node.children.borrow().iter() {
-        extract_tags(child.clone(), tag, tags);
+        extract_tags(&child.clone(), tag, tags);
     }
 }
