@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  rust-crawler:
+    build: .
+    depends_on:
+      - elasticsearch
+    environment:
+      - ELASTICSEARCH_URL=http://elasticsearch:9200
+    networks:
+      - crawler-network
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.13.4
+    environment:
+      - discovery.type=single-node
+    networks:
+      - crawler-network
+
+networks:
+  crawler-network:
+    driver: bridge
+
