@@ -44,6 +44,7 @@ pub async fn start_crawler(
         .build()
         .expect("should be able to build reqwest client");
 
+    let client_1 = reqwest::Client::new();
     let res = client.get("https://check.torproject.org").send().await?;
     let text = res.text().await?;
     let is_tor = text.contains("Congratulations. This browser is configured to use Tor.");
@@ -78,7 +79,7 @@ pub async fn start_crawler(
                         page_data.insert("title".to_string(), title_str);
                     }
 
-                    match post_url_data(&client, &page_data).await {
+                    match post_url_data(&client_1, &page_data).await {
                         Ok(_) => println!("posted to elastic search"),
                         Err(_) => println!("failed to post to elasticSearch")
                     }
@@ -99,12 +100,12 @@ pub async fn start_crawler(
 }
 
 async fn post_url_data(
-    client: &reqwest::Client,
+    client1: &reqwest::Client,
     data: &HashMap<String, String>,
 ) -> Result<(), reqwest::Error> {
     // println!("Posting data to Elasticsearch: {:?}", data); // Debug statement
 
-    let res = client
+    let res = client1
         .post("http://127.0.0.1:9200/logs/_doc")
         .json(data)
         .send()
