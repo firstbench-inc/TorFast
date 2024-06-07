@@ -1,6 +1,6 @@
 // src/main.rs
 
-use lol_html::{HtmlRewriter, Settings, element, text};
+use lol_html::{element, text, HtmlRewriter, Settings};
 //use lol_html::html_content::ContentType;
 fn main() {
     let html = r#"
@@ -22,14 +22,15 @@ fn main() {
     {
         let mut rewriter = HtmlRewriter::new(
             Settings {
-                element_content_handlers: vec![
-                    element!("a[href]", |el| {
+                element_content_handlers: vec![element!(
+                    "a[href]",
+                    |el| {
                         if let Some(href) = el.get_attribute("href") {
                             hrefs.push(href);
                         }
                         Ok(())
-                    }),
-                ],
+                    }
+                )],
                 ..Settings::default()
             },
             |_: &[u8]| {},

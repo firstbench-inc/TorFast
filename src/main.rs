@@ -1,7 +1,7 @@
-mod tests;
-mod parser;
 mod fetcher;
+mod parser;
 mod parser2;
+mod tests;
 use core::panic;
 use std::collections::{HashMap, VecDeque};
 
@@ -66,33 +66,37 @@ async fn main() -> Result<(), reqwest::Error> {
     Ok(())
 }
 
-
-
-pub async fn start_crawler(mut to_visit: VecDeque<String>) -> Result<(), reqwest::Error> {
-    let proxy = reqwest::Proxy::all("socks5h://127.0.0.1:9050").expect("tor proxy should be there");
+pub async fn start_crawler(
+    mut to_visit: VecDeque<String>,
+) -> Result<(), reqwest::Error> {
+    let proxy = reqwest::Proxy::all("socks5h://127.0.0.1:9050")
+        .expect("tor proxy should be there");
     let client = reqwest::Client::builder()
         .proxy(proxy)
         .build()
         .expect("should be able to build reqwest client");
-    
-    let res = client.get("https://check.torproject.org").send().await?;
+
+    let res =
+        client.get("https://check.torproject.org").send().await?;
     let text = res.text().await?;
-    let is_tor = text.contains("Congratulations. This browser is configured to use Tor.");
+    let is_tor = text.contains(
+        "Congratulations. This browser is configured to use Tor.",
+    );
     println!("Is Tor: {is_tor}");
 
     let mut url = String::new();
     loop {
         url = match to_visit.pop_front() {
             Some(url) => url,
-            None => panic!("seedlist exhausted")
+            None => panic!("seedlist exhausted"),
         };
-        let res = client.get(url).send().await?;
+        let res = client.get(url.clone()).send().await?;
         let t = res.text().await?;
 
         let title = extract_title(&t);
 
         let mut page_data = HashMap::new();
-        page_data.insert("link".to_string(), url.to_string());
+        page_data.insert("link".to_string(), url);
         page_data.insert("content".to_string(), t.clone());
         if let Some(title_str) = title {
             page_data.insert("title".to_string(), title_str);
@@ -101,34 +105,38 @@ pub async fn start_crawler(mut to_visit: VecDeque<String>) -> Result<(), reqwest
         post_url_data(&client, &page_data).await?;
         let mut links = vec![];
 
-        let dom = html5ever::parse_document(RcDom::default(), Default::default())
-            .from_utf8()
-            .read_from(&mut t.as_bytes())
-            .unwrap();
+        let dom = html5ever::parse_document(
+            RcDom::default(),
+            Default::default(),
+        )
+        .from_utf8()
+        .read_from(&mut t.as_bytes())
+        .unwrap();
 
         extract_a_tags(dom.document, &mut links);
         to_visit.append(&mut VecDeque::from(links));
     }
-    for seed in SEEDLIST {
-        let res = client.get(seed).send().await?;
-        let t = res.text().await?;
-
-        let title = extract_title(&t);
-
-        let mut page_data = HashMap::new();
-        page_data.insert("link".to_string(), seed.to_string());
-        page_data.insert("content".to_string(), t.clone());
-        if let Some(title_str) = title {
-            page_data.insert("title".to_string(), title_str);
-        }
-
-        post_url_data(&client, &page_data).await?;
-    }
-    Ok(())
-
+    // for seed in SEEDLIST {
+    //     let res = client.get(seed).send().await?;
+    //     let t = res.text().await?;
+    //
+    //     let title = extract_title(&t);
+    //
+    //     let mut page_data = HashMap::new();
+    //     page_data.insert("link".to_string(), seed.to_string());
+    //     page_data.insert("content".to_string(), t.clone());
+    //     if let Some(title_str) = title {
+    //         page_data.insert("title".to_string(), title_str);
+    //     }
+    //
+    //     post_url_data(&client, &page_data).await?;
+    // }
 }
 
-async fn post_url_data(client: &reqwest::Client, data: &HashMap<String, String>) -> Result<(), reqwest::Error> {
+async fn post_url_data(
+    client: &reqwest::Client,
+    data: &HashMap<String, String>,
+) -> Result<(), reqwest::Error> {
     let res = client
         .post("http://127.0.0.1:9200/logs/_doc")
         .json(data)
@@ -139,10 +147,13 @@ async fn post_url_data(client: &reqwest::Client, data: &HashMap<String, String>)
 }
 
 fn extract_title(html: &str) -> Option<String> {
-    let dom = html5ever::parse_document(RcDom::default(), Default::default())
-        .from_utf8()
-        .read_from(&mut html.as_bytes())
-        .unwrap();
+    let dom = html5ever::parse_document(
+        RcDom::default(),
+        Default::default(),
+    )
+    .from_utf8()
+    .read_from(&mut html.as_bytes())
+    .unwrap();
 
     let document = dom.document;
     let mut title = vec![];
