@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
-
-pub struct poster{
-    client :reqwest::Client,
+pub struct Poster {
+    client: reqwest::Client,
 }
+
 impl Poster {
     pub fn new() -> Self {
         let client = reqwest::Client::new();
@@ -20,7 +20,7 @@ impl Poster {
             .send()
             .await?;
 
-       // println!("Posted data: {:?}", res);
+        // println!("Posted data: {:?}", res);
         Ok(())
     }
 }

@@ -1,6 +1,8 @@
 use std::io::Read;
 
-pub async fn start(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+pub async fn start(
+    &mut self,
+) -> Result<(), Box<dyn std::error::Error>> {
     let mut success_count = 0;
     let mut failure_count = 0;
 
@@ -13,19 +15,24 @@ pub async fn start(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         println!("Processing URL: {}", url); // Debug statement
 
         match self.fetcher.fetch(&url).await {
-            Ok(content) => { // Assuming fetch now directly returns the content
+            Ok(content) => {
+                // Assuming fetch now directly returns the content
                 println!("Successfully fetched URL: {}", url); // Debug statement
 
-                let dom = match html5ever::parse_document(rcdom::RcDom::default(), Default::default())
-                    .from_utf8()
-                    .read_from(&mut content.as_bytes()) {
-                        Ok(dom) => dom,
-                        Err(e) => {
-                            println!("Error parsing HTML: {:?}", e);
-                            failure_count += 1;
-                            continue;
-                        }
-                    };
+                let dom = match html5ever::parse_document(
+                    rcdom::RcDom::default(),
+                    Default::default(),
+                )
+                .from_utf8()
+                .read_from(&mut content.as_bytes())
+                {
+                    Ok(dom) => dom,
+                    Err(e) => {
+                        println!("Error parsing HTML: {:?}", e);
+                        failure_count += 1;
+                        continue;
+                    }
+                };
 
                 let mut parser = Parser::new();
                 parser.parse_a_tags(dom.document.clone());
@@ -41,7 +48,10 @@ pub async fn start(&mut self) -> Result<(), Box<dyn std::error::Error>> {
                 match self.poster.post_url_data(&page_data).await {
                     Ok(_) => println!("Posted to Elasticsearch"),
                     Err(e) => {
-                        println!("Failed to post to Elasticsearch: {:?}", e);
+                        println!(
+                            "Failed to post to Elasticsearch: {:?}",
+                            e
+                        );
                         failure_count += 1;
                     }
                 }
