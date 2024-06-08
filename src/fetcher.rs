@@ -21,7 +21,7 @@ impl Fetcher {
     pub async fn fetch<S: Into<String>>(
         &self,
         url: S,
-    ) -> Result<(), reqwest::Error> {
+    ) -> Result<String, reqwest::Error> {
         let res = self.client.get(url.into()).send().await?;
         println!("Status: {}", res.status());
 
@@ -30,6 +30,6 @@ impl Fetcher {
             "Congratulations. This browser is configured to use Tor.",
         );
         println!("Is Tor: {is_tor}");
-        Ok(())
+        Ok(text)
     }
 }

@@ -4,6 +4,8 @@ mod parser;
 mod poster;
 // mod tests;
 
+extern crate markup5ever_rcdom as rcdom;
+
 use std::collections::VecDeque;
 use std::io::{self, Read};
 use std::sync::{
@@ -56,6 +58,6 @@ async fn main() -> Result<(), reqwest::Error> {
         to_visit, fetcher, poster, notify, stop_flag,
     );
 
-    crawler.start().await?;
+    crawler.start().await;
     Ok(())
 }
