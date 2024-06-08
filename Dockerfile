@@ -24,11 +24,11 @@ RUN useradd -m appuser
 USER appuser
 
 # Copy the built binary from the builder stage
-COPY --from=builder /app/target/release/crawler-rs /usr/local/bin/crawler-rs
+COPY --from=builder /app/target/release/crawle-rs /usr/local/bin/crawle-rs
 
 # Copy any other necessary files (e.g., configuration files)
 # COPY config /path/to/config
 
 # Set the entrypoint to the built binary
-ENTRYPOINT ["crawler-rs"]
+ENTRYPOINT ["crawle-rs"]
 
