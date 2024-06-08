@@ -22,7 +22,7 @@ use std::default::Default;
 
 #[tokio::main]
 async fn main() -> Result<(), reqwest::Error> {
-    let SEEDLIST: [&str; 11] = [
+    let _seedlist: [&str; 11] = [
         "http://torlinkv7cft5zhegrokjrxj2st4hcimgidaxdmcmdpcrnwfxrr2zxqd.onion/",
         "http://fvrifdnu75abxcoegldwea6ke7tnb3fxwupedavf5m3yg3y2xqyvi5qd.onion/",
         "http://zqktlwiuavvvqqt4ybvgvi7tyo4hjl5xgfuvpdf6otjiycgwqbym2qad.onion/wiki/index.php/Main_Page",
@@ -36,7 +36,7 @@ async fn main() -> Result<(), reqwest::Error> {
         "https://github.com/alecmuffett/real-world-onion-sites",
     ];
 
-    let to_visit = VecDeque::from(SEEDLIST.map(String::from));
+    let to_visit = VecDeque::from(_seedlist.map(String::from));
     let notify = Arc::new(Notify::new());
     let stop_flag = Arc::new(AtomicBool::new(false));
 
@@ -63,7 +63,7 @@ async fn main() -> Result<(), reqwest::Error> {
 
 pub async fn start_crawler(
     mut to_visit: VecDeque<String>,
-    notify: Arc<Notify>,
+    _notify: Arc<Notify>,
     stop_flag: Arc<AtomicBool>,
 ) -> Result<(), reqwest::Error> {
     let proxy = reqwest::Proxy::all("socks5h://127.0.0.1:9050")
