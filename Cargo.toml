@@ -14,3 +14,4 @@ reqwest = { version = "0.12.4", features = ["json", "socks"] }
 tendril = "0.4.3"
 tokio = { version = "1.38.0", features = ["full"] }
 tokio-macros = "2.3.0"
+wiremock = "0.6.0"

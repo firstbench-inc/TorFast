@@ -2,7 +2,10 @@ mod crawler;
 mod fetcher;
 mod parser;
 mod poster;
+mod test;
 // mod tests;
+
+
 
 extern crate markup5ever_rcdom as rcdom;
 
