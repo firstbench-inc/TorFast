@@ -1,28 +1,83 @@
 use rcdom::{Handle, NodeData};
+use tendril::TendrilSink;
 
 pub struct Parser {
     hrefs: Vec<String>,
-    tags: Vec<String>,
+    title: String,
+    handle: Option<Handle>,
 }
 
 impl Parser {
     pub fn new() -> Self {
         Self {
             hrefs: Vec::new(),
-            tags: Vec::new(),
+            title: String::new(),
+            handle: None,
         }
     }
 
-    pub fn parse_a_tags(&mut self, handle: Handle) {
-        self.extract_a_tags(handle);
+    pub fn set_handle(
+        &mut self,
+        text: &String,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let dom = html5ever::parse_document(
+            rcdom::RcDom::default(),
+            Default::default(),
+        )
+        .from_utf8()
+        .read_from(&mut text.as_bytes())
+        .unwrap();
+        self.handle = Some(dom.document);
+        Ok(())
     }
 
-    pub fn parse_tags<S: Into<&'static str>>(
-        &mut self,
-        handle: &Handle,
-        tag: S,
+    //  function reads the html and sets the a tags and title tags
+    pub fn parse(&mut self) {
+        let node = self.handle.as_ref().unwrap();
+
+        let mut hrefs: Vec<String> = vec![];
+        let mut title = String::new();
+        self.parse_rec(Some(&node), &mut hrefs, &mut title);
+        self.hrefs = hrefs;
+        self.title = title;
+    }
+
+    pub fn parse_rec(
+        &self,
+        handle: Option<&Handle>,
+        mut hrefs: &mut Vec<String>,
+        mut title: &mut String,
     ) {
-        self.extract_tags(handle, tag);
+        let node = handle.unwrap();
+        if let NodeData::Element { name, attrs, .. } = &node.data {
+            let attrs = attrs.borrow();
+
+            if &name.local == "a" {
+                hrefs.extend(
+                    attrs
+                        .iter()
+                        .filter(|attr| {
+                            attr.name.local.to_string() == "href"
+                        })
+                        .map(|attr| attr.value.to_string()),
+                );
+            }
+
+            if &name.local == "title" {
+                *title = attrs
+                    .iter()
+                    .find(|attr| {
+                        attr.name.local.to_string() == "title"
+                    })
+                    .map_or(String::new(), |attr| {
+                        attr.value.to_string()
+                    });
+            }
+        }
+
+        for child in node.children.borrow().iter() {
+            self.parse_rec(Some(&child), &mut hrefs, &mut title);
+        }
     }
 
     fn extract_a_tags(&mut self, handle: Handle) {
@@ -67,7 +122,7 @@ impl Parser {
             } => {
                 if &name.local == tag {
                     attrs.borrow().iter().for_each(|attr| {
-                        self.tags.push(attr.value.to_string());
+                        self.title = attr.value.to_string();
                     });
                 }
             }
@@ -82,7 +137,11 @@ impl Parser {
         &self.hrefs
     }
 
-    pub fn get_tags(&self) -> &Vec<String> {
-        &self.tags
+    pub fn get_title(&self) -> &String {
+        &self.title
+    }
+
+    pub fn get_handle(&self) -> &Handle {
+        self.handle.as_ref().unwrap()
     }
 }

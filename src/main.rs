@@ -55,7 +55,7 @@ async fn main() -> Result<(), reqwest::Error> {
     let fetcher = fetcher::Fetcher::new();
     let poster = poster::Poster::new();
     let mut crawler = crawler::Crawler::new(
-        to_visit, fetcher, poster, notify, stop_flag,
+        to_visit, notify, stop_flag,
     );
 
     crawler.start().await;

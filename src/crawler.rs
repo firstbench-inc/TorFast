@@ -1,14 +1,23 @@
-use std::{collections::VecDeque, io::Read, sync::{atomic::{AtomicBool, Ordering}, Arc}};
+use std::{
+    collections::{HashMap, VecDeque},
+    io::Read,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
+};
 
+use reqwest::{Client, Proxy};
 use tendril::TendrilSink;
 use tokio::sync::Notify;
 
-use crate::{fetcher::Fetcher, poster::Poster};
+use crate::{fetcher::Fetcher, parser::Parser, poster::Poster};
 
 pub struct Crawler {
     to_visit: VecDeque<String>,
     fetcher: Fetcher,
     poster: Poster,
+    parser: Parser,
     notify: Arc<Notify>,
     stop_flag: Arc<AtomicBool>,
 }
@@ -16,22 +25,25 @@ pub struct Crawler {
 impl Crawler {
     pub fn new(
         to_visit: VecDeque<String>,
-        fetcher: Fetcher,
-        poster: Poster,
         notify: Arc<Notify>,
         stop_flag: Arc<AtomicBool>,
     ) -> Self {
+        let fetcher = Fetcher::new();
+        let poster = Poster::new();
+        let parser = Parser::new();
+
         Self {
             to_visit,
             fetcher,
             poster,
+            parser,
             notify,
             stop_flag,
         }
     }
 
     // function start to start crawling
-    pub async fn start( 
+    pub async fn start(
         &mut self,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let mut success_count = 0;
@@ -46,30 +58,28 @@ impl Crawler {
                 Ok(content) => {
                     // Assuming fetch now directly returns the content
                     println!("Successfully fetched URL: {}", url); // Debug statement
-                    let dom = match html5ever::parse_document(
-                        rcdom::RcDom::default(),
-                        Default::default(),
-                    )
-                    .from_utf8()
-                    .read_from(&mut content.as_bytes())
-                    {
-                        Ok(dom) => dom,
+                    match self.parser.set_handle(&content) {
+                        Ok(_) => {}
                         Err(e) => {
-                            println!("Error parsing HTML: {:?}", e);
+                            println!(
+                                "Failed to parse handle: {:?}",
+                                e
+                            );
                             failure_count += 1;
                             continue;
                         }
                     };
-                    let mut parser = Parser::new();
-                    parser.parse_a_tags(dom.document.clone());
-                    let title = parser.get_title(dom.document.clone());
+
+                    self.parser.parse();
+
                     let mut page_data = HashMap::new();
                     page_data.insert("link".to_string(), url);
                     page_data.insert("content".to_string(), content);
-                    if let Some(title_str) = title {
-                        page_data.insert("title".to_string(), title_str);
-                    }
-                    match self.poster.post_url_data(&page_data).await {
+                    page_data
+                        .insert("title".to_string(), self.parser.get_title().clone());
+
+                    match self.poster.post_url_data(&page_data).await
+                    {
                         Ok(_) => println!("Posted to Elasticsearch"),
                         Err(e) => {
                             println!(
@@ -79,7 +89,7 @@ impl Crawler {
                             failure_count += 1;
                         }
                     }
-                    self.to_visit.extend(parser.get_hrefs());
+                    self.to_visit.extend(self.parser.get_hrefs().clone());
                     success_count += 1;
                 }
                 Err(e) => {
