@@ -1,15 +1,10 @@
 use std::{
     collections::{HashMap, VecDeque},
-    io::Read,
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc,
     },
 };
-
-use reqwest::{Client, Proxy};
-use tendril::TendrilSink;
-use tokio::sync::Notify;
 
 use crate::{fetcher::Fetcher, parser::Parser, poster::Poster};
 
@@ -18,14 +13,12 @@ pub struct Crawler {
     fetcher: Fetcher,
     poster: Poster,
     parser: Parser,
-    notify: Arc<Notify>,
     stop_flag: Arc<AtomicBool>,
 }
 
 impl Crawler {
     pub fn new(
         to_visit: VecDeque<String>,
-        notify: Arc<Notify>,
         stop_flag: Arc<AtomicBool>,
     ) -> Self {
         let fetcher = Fetcher::new();
@@ -37,7 +30,6 @@ impl Crawler {
             fetcher,
             poster,
             parser,
-            notify,
             stop_flag,
         }
     }
