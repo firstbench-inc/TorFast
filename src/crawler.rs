@@ -64,11 +64,7 @@ impl Crawler {
 
                     self.parser.parse();
 
-                    let mut page_data = HashMap::new();
-                    page_data.insert("link".to_string(), url);
-                    page_data.insert("content".to_string(), content);
-                    page_data
-                        .insert("title".to_string(), self.parser.get_title().clone());
+                    let page_data = self.generate_page_data(&url, &content);
 
                     match self.poster.post_url_data(&page_data).await
                     {
@@ -93,5 +89,16 @@ impl Crawler {
         println!("Successfully processed URLs: {}", success_count);
         println!("Failed to process URLs: {}", failure_count);
         Ok(())
+    }
+
+    fn generate_page_data<'a, 'b>(&'a self, url: &'a String, content: &'b String) -> HashMap<String, &'b String> 
+        where 'a: 'b
+    {
+        let mut page_data = HashMap::new();
+        page_data.insert("link".to_string(), url);
+        page_data.insert("content".to_string(), content);
+        page_data
+            .insert("title".to_string(), self.parser.get_title());
+        page_data
     }
 }

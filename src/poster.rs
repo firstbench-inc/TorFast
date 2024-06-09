@@ -11,7 +11,7 @@ impl Poster {
     }
     pub async fn post_url_data(
         &self,
-        data: &HashMap<String, String>,
+        data: &HashMap<String, &String>,
     ) -> Result<(), reqwest::Error> {
         let res = self
             .client

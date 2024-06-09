@@ -61,19 +61,16 @@ impl Parser {
                         })
                         .map(|attr| attr.value.to_string()),
                 );
-            }
+            };
 
             if &name.local == "title" {
-                *title = attrs
-                    .iter()
-                    .find(|attr| {
-                        attr.name.local.to_string() == "title"
-                    })
-                    .map_or(String::new(), |attr| {
-                        attr.value.to_string()
-                    });
+                node.children.borrow().iter().for_each(|child| {
+                    if let NodeData::Text { contents } = &child.data {
+                        *title = contents.borrow().to_string();
+                    }
+                });
             }
-        }
+        };
 
         for child in node.children.borrow().iter() {
             self.parse_rec(Some(&child), &mut hrefs, &mut title);
