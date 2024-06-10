@@ -5,5 +5,4 @@ mod fetcher_test;
 mod parser_tests;
 
 #[cfg(test)]
-
 mod poster_test;

@@ -10,6 +10,7 @@ mod test;
 extern crate markup5ever_rcdom as rcdom;
 
 use std::collections::VecDeque;
+use std::fs::File;
 use std::io::{self, Read};
 use std::sync::{
     atomic::{AtomicBool, Ordering},
@@ -55,8 +56,9 @@ async fn main() -> Result<(), reqwest::Error> {
         }
     });
 
-    let mut crawler = crawler::Crawler::new(
-        to_visit,  stop_flag,
+    let mut crawler = crawler::Crawler::new::<5>(
+        to_visit, stop_flag,
+        Some("test.txt".to_string()),
     );
 
     let _ = crawler.start().await;
