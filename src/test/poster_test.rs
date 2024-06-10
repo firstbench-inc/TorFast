@@ -1,5 +1,4 @@
 // tests/poster_tests.rs
-
 use crate::poster::Poster;
 use std::collections::HashMap;
 use wiremock::{MockServer, Mock, ResponseTemplate};
