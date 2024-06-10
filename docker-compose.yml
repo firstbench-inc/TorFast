@@ -1,12 +1,9 @@
 version: '3.8'
 
 services:
-  rust-crawle:
-    build: .
-    depends_on:
-      - elasticsearch
-      - tor
-    environment:
+   crawle-rs:
+    build: 
+      context: .   environment:
       - ELASTICSEARCH_URL=http://elasticsearch:9200
       - TOR_PROXY=tor:9050
     networks:
