@@ -4,6 +4,8 @@ pub struct Fetcher {
     client: Client,
 }
 
+
+
 impl Fetcher {
     // Constructor to create a new Fetcher instance
     pub fn new() -> Self {
