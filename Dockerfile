@@ -11,13 +11,14 @@ COPY . .
 RUN cargo build --release
 
 # Step 2: Create a minimal image with the built binary
-FROM rust:slim-buster
+FROM debian:bookworm-slim
 
 # Install the necessary dependencies for running the binary
 RUN apt-get update && apt-get install -y \
     libssl-dev \
     ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/*\
+    && apt-get update && apt install -y openssl
 
 # Create a non-root user and switch to it
 RUN useradd -m appuser
@@ -31,4 +32,3 @@ COPY --from=builder /app/target/release/crawle-rs /usr/local/bin/crawle-rs
 
 # Set the entrypoint to the built binary
 ENTRYPOINT ["crawle-rs"]
-
