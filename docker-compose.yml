@@ -1,14 +1,14 @@
 version: '3.8'
 
 services:
-   crawle-rs:
-    build: 
-      context: .   environment:
+  crawle-rs:
+    build:
+      context: .
+    environment:
       - ELASTICSEARCH_URL=http://elasticsearch:9200
       - TOR_PROXY=tor:9050
     networks:
       - crawler-network
-
 
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.13.4
@@ -19,6 +19,7 @@ services:
       - discovery.type=single-node
     networks:
       - crawler-network
+
   tor:
     image: dperson/torproxy
     container_name: tor
@@ -26,10 +27,9 @@ services:
       - TOR_CONTROL=0
     ports:
       - "9050:9050"
-
-
+    networks:
+      - crawler-network
 
 networks:
   crawler-network:
     driver: bridge
-
