@@ -9,6 +9,8 @@ services:
       - TOR_PROXY=tor:9050
     networks:
       - crawler-network
+    depends_on:
+      - tor
 
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.13.4
