@@ -10,28 +10,44 @@ services:
     networks:
       - crawler-network
     depends_on:
-      - tor
+      elasticsearch:
+        condition: service_healthy
+      tor:
+        condition: service_healthy
 
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.13.4
     ports:
       - "9200:9200"
-      - "9300:9300"
+      - "9301:9300" # Changed the host port from 9300 to 9301
     environment:
       - discovery.type=single-node
+      - xpack.security.enabled=false
+      - xpack.security.http.ssl.enabled=false
+      - xpack.security.transport.ssl.enabled=false
     networks:
       - crawler-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
 
   tor:
+    restart: always
     image: dperson/torproxy
     container_name: tor
-    environment:
-      - TOR_CONTROL=0
     ports:
       - "9050:9050"
     networks:
       - crawler-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sSf --socks5-hostname localhost:9050 https://check.torproject.org/ | grep -q 'Congratulations'"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
 
 networks:
   crawler-network:
     driver: bridge
+
