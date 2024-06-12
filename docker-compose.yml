@@ -10,9 +10,9 @@ services:
     networks:
       - crawler-network
     depends_on:
-      elasticsearch:
-        condition: service_healthy
       tor:
+        condition: service_healthy
+      elasticsearch:
         condition: service_healthy
 
   elasticsearch:
@@ -21,10 +21,10 @@ services:
       - "9200:9200"
       - "9301:9300" # Changed the host port from 9300 to 9301
     environment:
-      - discovery.type=single-node
-      - xpack.security.enabled=false
-      - xpack.security.http.ssl.enabled=false
-      - xpack.security.transport.ssl.enabled=false
+      - "discovery.type=single-node"
+      - "xpack.security.enabled=false"
+      - "xpack.security.http.ssl.enabled=false"
+      - "xpack.security.transport.ssl.enabled=false"
     networks:
       - crawler-network
     healthcheck:
