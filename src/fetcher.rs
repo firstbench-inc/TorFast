@@ -4,12 +4,10 @@ pub struct Fetcher {
     client: Client,
 }
 
-
-
 impl Fetcher {
     // Constructor to create a new Fetcher instance
     pub fn new() -> Self {
-        let proxy = Proxy::all("socks5h://tor:9050")
+        let proxy = Proxy::all("socks5h://127.0.0.1:9050")
             .expect("tor proxy should be there");
         let client = Client::builder()
             .proxy(proxy)
@@ -28,10 +26,6 @@ impl Fetcher {
         println!("Status: {}", res.status());
 
         let text = res.text().await?;
-        let is_tor = text.contains(
-            "Congratulations. This browser is configured to use Tor.",
-        ); 
-        println!("Is Tor: {is_tor}");
         Ok(text)
     }
 }

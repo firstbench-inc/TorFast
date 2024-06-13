@@ -5,8 +5,6 @@ mod poster;
 mod test;
 // mod tests;
 
-
-
 extern crate markup5ever_rcdom as rcdom;
 
 use std::collections::VecDeque;
@@ -19,7 +17,7 @@ use std::sync::{
 use std::thread;
 use tokio::sync::Notify;
 
-#[tokio::main]
+#[tokio::main()]
 async fn main() -> Result<(), reqwest::Error> {
     let seedlist: [&str; 11] = [
         "http://torlinkv7cft5zhegrokjrxj2st4hcimgidaxdmcmdpcrnwfxrr2zxqd.onion/",
@@ -56,8 +54,9 @@ async fn main() -> Result<(), reqwest::Error> {
         }
     });
 
-    let mut crawler = crawler::Crawler::new::<5>(
-        to_visit, stop_flag,
+    let mut crawler = crawler::Crawler::new::<500>(
+        to_visit,
+        stop_flag,
         Some("test.txt".to_string()),
     );
 

@@ -138,7 +138,7 @@ impl Parser {
         &self.title
     }
 
-    pub fn get_handle(&self) -> &Handle {
-        self.handle.as_ref().unwrap()
-    }
+    // pub fn get_handle(&self) -> &Handle {
+    //     self.handle.as_ref().unwrap()
+    // }
 }
