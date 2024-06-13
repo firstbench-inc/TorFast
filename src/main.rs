@@ -93,5 +93,7 @@ async fn main() -> Result<(), reqwest::Error> {
     );
 
     let _ = crawler.start().await;
+   
     Ok(())
+
 }

@@ -3,6 +3,7 @@ version: '3.8'
 services:
   crawle-rs:
     stdin_open: true
+    tty: true
     build:
       context: .
     environment:

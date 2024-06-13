@@ -8,7 +8,7 @@ use std::{
 use fastbloom::BloomFilter;
 
 use crate::{fetcher::Fetcher, parser::Parser, poster::Poster};
-
+use::tokio::time::{interval,Duration};
 pub struct Crawler {
     to_visit: VecDeque<String>,
     fetcher: Fetcher,
@@ -72,6 +72,7 @@ impl Crawler {
     ) -> Result<(), Box<dyn std::error::Error>> {
         let mut success_count = 0;
         let mut failure_count = 0;
+        let mut timer = interval(Duration::from_secs(60)); 
         while let Some(url) = self.to_visit.pop_front() {
             // Check if we need to stop
             if self.stop_flag.load(Ordering::Relaxed) {
@@ -84,12 +85,18 @@ impl Crawler {
                 self.bfilter.insert(&url);
                 self.add_url(&url);
             }
+            timer.tick().await;
+            println!("Successfully processed URLs: {}", success_count);
+            println!("Failed to process URLs: {}", failure_count);
+
 
             println!("Processing URL: {}", url); // Debug statement
             match self.fetcher.fetch(&url).await {
                 Ok(content) => {
                     // Assuming fetch now directly returns the content
                     println!("Successfully fetched URL: {}", url); // Debug statement
+                    println!("Successfully processed URLs: {}", success_count);
+                    println!("Failed to process URLs: {}", failure_count);
                     match self.parser.set_handle(&content) {
                         Ok(_) => {}
                         Err(e) => {
@@ -98,6 +105,7 @@ impl Crawler {
                                 e
                             );
                             failure_count += 1;
+                            
                             continue;
                         }
                     };
