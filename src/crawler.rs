@@ -142,6 +142,7 @@ impl Crawler {
     fn add_url(&mut self, url: &String) {
         if self.visited_n >= (self.visited.len() as f64 * 0.8) as usize {
             self.stash_urls();
+            self.visited_n=0;
             // self.visited = self.visited.to_vec().into_boxed_slice();
         }
         self.visited[self.visited_n] = Some(url.clone());

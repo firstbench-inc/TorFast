@@ -87,7 +87,7 @@ async fn main() -> Result<(), reqwest::Error> {
         }
     });
 
-    let mut crawler = crawler::Crawler::new::<5>(
+    let mut crawler = crawler::Crawler::new::<50000>(
         to_visit, stop_flag,
         Some("test.txt".to_string()),
     );

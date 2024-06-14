@@ -37,7 +37,7 @@ services:
 
   tor:
     restart: always
-    image: dperson/torproxy
+    image: osminogin/tor-simple
     container_name: tor
     ports:
       - "9050:9050"
