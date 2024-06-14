@@ -20,7 +20,6 @@ pub struct Crawler {
     visited: Box<[Option<String>]>,
     visited_n: usize,
     file: Option<std::fs::File>,
-    semaphore: Arc<Semaphore>,
 }
 
 impl Crawler {
@@ -57,7 +56,6 @@ impl Crawler {
             }
             None => None,
         };
-        let semaphore = Arc::new(Semaphore::new(100));
 
         Self {
             to_visit,
@@ -69,7 +67,6 @@ impl Crawler {
             visited,
             visited_n,
             file,
-            semaphore
         }
     }
 
@@ -79,11 +76,11 @@ impl Crawler {
     ) -> Result<(), Box<dyn std::error::Error>> {
         let mut success_count = 0;
         let mut failure_count = 0;
-        let  semaphore = self.semaphore.clone();
         let fetcher = Arc::new(Fetcher::new());
         let parser = Arc::new(Parser::new());
         let poster = Arc::new(Poster::new());
         let mut handle_vec: Vec<task::JoinHandle<()>> = vec![];
+        handle_batch_req(&mut self.to_visit, fetcher.clone()).await;
         loop  {
             let url;
             match self.to_visit.pop_front() {
@@ -91,7 +88,7 @@ impl Crawler {
                     url = u;
                 }
                 None => {
-                    let x = handle_vec.clone();
+                    // let x = handle_vec.clone();
                     // for handle in x.iter() {
                     //     handle.await.unwrap();
                     // }
@@ -110,23 +107,21 @@ impl Crawler {
                 self.add_url(&url);
             }
 
-            println!("Processing URL: {}", url); // Debug statement
-            let _permit = semaphore.acquire().await;
-            let f = fetcher.clone();
-            // let pa = parser.clone();
-            // let po = poster.clone();
-            let handle = task::spawn(async move {
-                // success_count += 1;
-                // self.visited_n = 0;
-                // self.handle_url(url).await;
-                // f.fetch(url).await
-                handle_req(url, f).await
-            });
-            handle_vec.push(handle);
-            // if let ControlFlow::Break(_) = self.handle_url(url, &mut failure_count, &mut success_count).await {
-            //     continue;
-            // }
-            drop(_permit);
+            // println!("Processing URL: {}", url); // Debug statement
+            // let f = fetcher.clone();
+            // // let pa = parser.clone();
+            // // let po = poster.clone();
+            // let handle = task::spawn(async move {
+            //     // success_count += 1;
+            //     // self.visited_n = 0;
+            //     // self.handle_url(url).await;
+            //     // f.fetch(url).await
+            //     handle_req(url, f).await
+            // });
+            // handle_vec.push(handle);
+            // // if let ControlFlow::Break(_) = self.handle_url(url, &mut failure_count, &mut success_count).await {
+            // //     continue;
+            // // }
         }
         // for handle in handle_vec {
         //     handle.await.unwrap();
@@ -267,14 +262,35 @@ mod tests {
     }
 }
 
-pub async fn handle_req(url: String, fetcher: Arc<Fetcher>) {
+pub async fn handle_req(url: String, fetcher: Arc<Fetcher>) -> Result<String, reqwest::Error> {
     match fetcher.fetch(url).await {
         Ok(content) => {
-            println!("Successfully fetched")
+            println!("Successfully fetched");
+            Ok(content)
         }
         Err(e) => {
-            println!("Failed to fetch: {:?}", e)
+            println!("Failed to fetch: {:?}", e);
+            Err(e)
         }
         
     }
+}
+
+pub async fn handle_batch_req(urls: &mut VecDeque<String>, fetcher: Arc<Fetcher>, parser: Arc<Parser>) {
+    let mut handles = vec![];
+    urls.iter().for_each(|url| {
+        let f = fetcher.clone();
+        let u = url.clone();
+        let handle = task::spawn(async {
+            let res = handle_req(u, f).await;
+            task::spawn_blocking(|| {
+
+            })
+        });
+        handles.push(handle);
+    });
+    for handle in handles {
+        handle.await.unwrap(); 
+    }
+
 }
