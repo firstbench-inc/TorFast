@@ -1,12 +1,20 @@
 use std::{
-    borrow::Borrow, collections::{HashMap, VecDeque}, io::Write, ops::ControlFlow, rc::Rc, sync::{
+    borrow::{Borrow, BorrowMut},
+    collections::{HashMap, VecDeque},
+    io::Write,
+    ops::ControlFlow,
+    rc::Rc,
+    sync::{
         atomic::{AtomicBool, Ordering},
-        Arc,
-    }
+        Arc, Mutex,
+    },
 };
 
 use fastbloom::BloomFilter;
-use tokio::{sync::Semaphore, task};
+use tokio::{
+    sync::mpsc,
+    task::{self, JoinSet},
+};
 
 use crate::{fetcher::Fetcher, parser::Parser, poster::Poster};
 
@@ -17,9 +25,11 @@ pub struct Crawler {
     parser: Arc<Parser>,
     stop_flag: Arc<AtomicBool>,
     bfilter: BloomFilter,
-    visited: Box<[Option<String>]>,
+    visited: Vec<Option<String>>,
     visited_n: usize,
     file: Option<std::fs::File>,
+    semaphore: Arc<tokio::sync::Semaphore>,
+    buffer_size: usize,
 }
 
 impl Crawler {
@@ -34,8 +44,10 @@ impl Crawler {
         let bfilter = BloomFilter::with_num_bits(200_000_000)
             .expected_items(100_000_000);
         const NONE: Option<String> = None;
-        let visited = Box::new([NONE; N]);
+        let visited = Vec::new();
+        let buffer_size = N;
         let visited_n = 0;
+        let semaphore = Arc::new(tokio::sync::Semaphore::new(100));
         let file = match path {
             Some(path) => {
                 let file = std::fs::OpenOptions::new()
@@ -67,6 +79,8 @@ impl Crawler {
             visited,
             visited_n,
             file,
+            semaphore,
+            buffer_size,
         }
     }
 
@@ -80,10 +94,22 @@ impl Crawler {
         let parser = Arc::new(Parser::new());
         let poster = Arc::new(Poster::new());
         let mut handle_vec: Vec<task::JoinHandle<()>> = vec![];
-        handle_batch_req(&mut self.to_visit, fetcher.clone()).await;
-        loop  {
+        let mut to_visit = self.to_visit.clone();
+        let mut to_visit = Arc::new(Mutex::new(to_visit));
+
+        // let (tx, rx) = mpsc::channel(3);
+        // spawn_parse_thread(rx);
+        // handle_batch_req(
+        //     &mut self.to_visit,
+        //     fetcher.clone(),
+        //     tx.clone(),
+        // )
+        // .await;
+
+        loop {
             let url;
-            match self.to_visit.pop_front() {
+            let mut x = to_visit.lock().unwrap();
+            match x.pop_front() {
                 Some(u) => {
                     url = u;
                 }
@@ -104,20 +130,64 @@ impl Crawler {
                 continue;
             } else {
                 self.bfilter.insert(&url);
-                self.add_url(&url);
+                self.add_url();
             }
 
-            // println!("Processing URL: {}", url); // Debug statement
-            // let f = fetcher.clone();
-            // // let pa = parser.clone();
-            // // let po = poster.clone();
-            // let handle = task::spawn(async move {
-            //     // success_count += 1;
-            //     // self.visited_n = 0;
-            //     // self.handle_url(url).await;
-            //     // f.fetch(url).await
-            //     handle_req(url, f).await
-            // });
+            println!("Processing URL: {}", url); // Debug statement
+            let f = fetcher.clone();
+            // let pa = parser.clone();
+            let po = poster.clone();
+            let y = to_visit.clone();
+            let semaphore = self.semaphore.clone();
+            let buf_size = self.buffer_size;
+            let handle = task::spawn(async move {
+                // success_count += 1;
+                // self.visited_n = 0;
+                // self.handle_url(url).await;
+                semaphore.acquire().await.unwrap();
+                match f.fetch(&url).await {
+                    Ok(resp) => {
+                        success_count += 1;
+                        let u = url.clone();
+                        let post = po.clone();
+                        let y = y;
+                        task::spawn(async move {
+                            let post = post;
+                            let mut p = Parser::new();
+                            p.set_handle(&resp);
+                            p.parse();
+                            println!("{:?}", &p.get_hrefs());
+                            let mut y = y.lock().unwrap();
+                            // y.append(&mut VecDeque::from(p.get_hrefs().clone()));
+                            append_to_vec(y.borrow_mut(), &p.get_hrefs(), buf_size);
+                            let mut page_data = HashMap::new();
+                            page_data.insert("link".to_string(), u);
+                            page_data.insert("content".to_string(), resp);
+                            page_data
+                            .insert("title".to_string(), p.get_title().clone());
+                            task::spawn(async {
+                                let x = post;
+                                let page_data = page_data;
+                                match x.post_url_data(&page_data).await {
+                                    Ok(_) => {
+                                        println!("Posted to Elasticsearch");
+                                    }
+                                    Err(e) => {
+                                        println!(
+                                            "Failed to post to Elasticsearch: {:?}",
+                                            e
+                                        );
+                                    }
+                                }
+                            })
+                        });
+                    }
+                    Err(e) => {
+                        println!("Failed to fetch: {:?}", e);
+                        failure_count += 1;
+                    }
+                };
+            });
             // handle_vec.push(handle);
             // // if let ControlFlow::Break(_) = self.handle_url(url, &mut failure_count, &mut success_count).await {
             // //     continue;
@@ -131,59 +201,59 @@ impl Crawler {
         Ok(())
     }
 
-//     async fn handle_url(&mut self, url: String) {
-//         let mut failure_count = 0;
-//         let mut success_count = 0;
-//         match self.fetcher.fetch(&url).await {
-//             Ok(content) => {
-//                 // Assuming fetch now directly returns the content
-//                 println!("Successfully fetched URL: {}", url); // Debug statement
-//                 match self.parser.set_handle(&content) {
-//                     Ok(_) => {}
-//                     Err(e) => {
-//                         println!(
-//                             "Failed to parse handle: {:?}",
-//                             e
-//                         );
-//                         failure_count += 1;
-//                     }
-//                 };
-//
-//                 self.parser.parse();
-//
-//                 let page_data =
-//                     self.generate_page_data(&url, &content);
-//
-//                 match self.poster.post_url_data(&page_data).await
-//                 {
-//                     Ok(_) => println!("Posted to Elasticsearch"),
-//                     Err(e) => {
-//                         println!(
-//                             "Failed to post to Elasticsearch: {:?}",
-//                             e
-//                         );
-//                         failure_count += 1;
-//                     }
-//                 }
-//                 self.to_visit
-//                     .extend(self.parser.get_hrefs().clone());
-//                 success_count += 1;
-//             }
-//             Err(e) => {
-//                 println!("Failed to fetch {}: {:?}", url, e);
-//                 failure_count += 1;
-//             }
-//         }
-//     }
-//
-    fn add_url(&mut self, url: &String) {
-        if self.visited_n
-            >= (self.visited.len() as f64 * 0.8) as usize
+    //     async fn handle_url(&mut self, url: String) {
+    //         let mut failure_count = 0;
+    //         let mut success_count = 0;
+    //         match self.fetcher.fetch(&url).await {
+    //             Ok(content) => {
+    //                 // Assuming fetch now directly returns the content
+    //                 println!("Successfully fetched URL: {}", url); // Debug statement
+    //                 match self.parser.set_handle(&content) {
+    //                     Ok(_) => {}
+    //                     Err(e) => {
+    //                         println!(
+    //                             "Failed to parse handle: {:?}",
+    //                             e
+    //                         );
+    //                         failure_count += 1;
+    //                     }
+    //                 };
+    //
+    //                 self.parser.parse();
+    //
+    //                 let page_data =
+    //                     self.generate_page_data(&url, &content);
+    //
+    //                 match self.poster.post_url_data(&page_data).await
+    //                 {
+    //                     Ok(_) => println!("Posted to Elasticsearch"),
+    //                     Err(e) => {
+    //                         println!(
+    //                             "Failed to post to Elasticsearch: {:?}",
+    //                             e
+    //                         );
+    //                         failure_count += 1;
+    //                     }
+    //                 }
+    //                 self.to_visit
+    //                     .extend(self.parser.get_hrefs().clone());
+    //                 success_count += 1;
+    //             }
+    //             Err(e) => {
+    //                 println!("Failed to fetch {}: {:?}", url, e);
+    //                 failure_count += 1;
+    //             }
+    //         }
+    //     }
+    //
+    fn add_url(&mut self) {
+        if self.visited.len()
+            >= (self.buffer_size as f64 * 0.8) as usize
         {
             self.stash_urls();
             // self.visited = self.visited.to_vec().into_boxed_slice();
         }
-        self.visited[self.visited_n] = Some(url.clone());
+        // self.visited[self.visited_n] = Some(url.clone());
         self.visited_n += 1;
     }
 
@@ -225,6 +295,80 @@ impl Crawler {
         page_data
     }
 }
+
+pub async fn handle_req(
+    url: String,
+    fetcher: Arc<Fetcher>,
+) -> Result<String, reqwest::Error> {
+    match fetcher.fetch(url).await {
+        Ok(content) => {
+            println!("Successfully fetched");
+            Ok(content)
+        }
+        Err(e) => {
+            println!("Failed to fetch: {:?}", e);
+            Err(e)
+        }
+    }
+}
+
+pub fn append_to_vec(visited: &mut VecDeque<String>, hrefs: &Vec<String>, n:usize) {
+    let mut i = 0;
+    for link in hrefs.iter() {
+        if i >= n {
+            break;
+        }
+        visited.push_back(link.clone());
+        i += 1;
+    }
+}
+
+// pub async fn handle_batch_req(
+//     urls: &mut VecDeque<String>,
+//     fetcher: Arc<Fetcher>,
+//     tx: tokio::sync::mpsc::Sender<String>,
+// ) {
+//     let mut set = JoinSet::new();
+//     urls.iter().for_each(|url| {
+//         let f = fetcher.clone();
+//         let u = url.clone();
+//         set.spawn(handle_req(u, f));
+//     });
+//
+//     while let Some(res) = set.join_next().await {
+//         match res {
+//             Ok(res) => match res {
+//                 Ok(resp) => {
+//                     let _ = tx.send(resp).await;
+//                 }
+//                 Err(e) => {
+//                     println!("Failed to fetch : {:?}", e);
+//                 }
+//             },
+//             Err(e) => {
+//                 println!("Failed to run future: {:?}", e);
+//             }
+//         }
+//     }
+// }
+//
+// pub fn spawn_parse_thread(rx: mpsc::Receiver<String>) {
+//     std::thread::spawn(|| {
+//         let mut parser = Parser::new();
+//         loop {
+//             match rx.recv().await {
+//             Ok(content) => {
+//                 parser.set_handle(&content);
+//                 parser.parse();
+//             }
+//             Err(e) => {
+//                 println!("Failed to receive content: {:?}", e);
+//             }
+//             }
+//         }
+//     });
+// }
+//
 mod tests {
     use super::Crawler;
     use std::{
@@ -260,37 +404,4 @@ mod tests {
         assert!(contents.contains("http://example.com"));
         assert!(contents.contains("http://test.com"));
     }
-}
-
-pub async fn handle_req(url: String, fetcher: Arc<Fetcher>) -> Result<String, reqwest::Error> {
-    match fetcher.fetch(url).await {
-        Ok(content) => {
-            println!("Successfully fetched");
-            Ok(content)
-        }
-        Err(e) => {
-            println!("Failed to fetch: {:?}", e);
-            Err(e)
-        }
-        
-    }
-}
-
-pub async fn handle_batch_req(urls: &mut VecDeque<String>, fetcher: Arc<Fetcher>, parser: Arc<Parser>) {
-    let mut handles = vec![];
-    urls.iter().for_each(|url| {
-        let f = fetcher.clone();
-        let u = url.clone();
-        let handle = task::spawn(async {
-            let res = handle_req(u, f).await;
-            task::spawn_blocking(|| {
-
-            })
-        });
-        handles.push(handle);
-    });
-    for handle in handles {
-        handle.await.unwrap(); 
-    }
-
 }
