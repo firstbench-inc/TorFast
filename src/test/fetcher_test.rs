@@ -1,4 +1,3 @@
-
 // tests/fetcher_tests.rs
 
 use crate::fetcher::Fetcher;
@@ -18,5 +17,7 @@ async fn test_fetch_tor() {
     let result = fetcher.fetch(url).await;
     assert!(result.is_ok());
     let text = result.unwrap();
-    assert!(text.contains("Congratulations. This browser is configured to use Tor."));
+    assert!(text.contains(
+        "Congratulations. This browser is configured to use Tor."
+    ));
 }

@@ -44,7 +44,7 @@ services:
     networks:
       - crawler-network
     healthcheck:
-      test: ["CMD-SHELL", "curl -sSf --socks5-hostname localhost:9050 https://check.torproject.org/ | grep -q 'Congratulations'"]
+      test: ["CMD-SHELL", "curl -sSf --socks5-hostname 127.0.0.1:9050 https://check.torproject.org/ | grep 'Congratulations'"]
       interval: 30s
       timeout: 10s
       retries: 5

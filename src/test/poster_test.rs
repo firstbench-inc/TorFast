@@ -1,9 +1,9 @@
 // tests/poster_tests.rs
 use crate::poster::Poster;
 use std::collections::HashMap;
-use wiremock::{MockServer, Mock, ResponseTemplate};
-use wiremock::matchers::{method, path};
 use tokio;
+use wiremock::matchers::{method, path};
+use wiremock::{Mock, MockServer, ResponseTemplate};
 
 #[tokio::test]
 async fn test_post_url_data() {

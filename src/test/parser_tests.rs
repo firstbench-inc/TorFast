@@ -16,7 +16,8 @@ fn test_parse_empty_document() {
 #[test]
 fn test_parse_with_links() {
     let mut parser = Parser::new();
-    let html = String::from(r#"
+    let html = String::from(
+        r#"
         <html>
             <head><title>Test Title</title></head>
             <body>
@@ -24,13 +25,17 @@ fn test_parse_with_links() {
                 <a href="https://example.org">Example Org</a>
             </body>
         </html>
-    "#);
+    "#,
+    );
     parser.set_handle(&html).expect("Failed to set handle");
     parser.parse();
 
-    assert_eq!(parser.get_hrefs(), &vec![
-        String::from("https://example.com"),
-        String::from("https://example.org")
-    ]);
+    assert_eq!(
+        parser.get_hrefs(),
+        &vec![
+            String::from("https://example.com"),
+            String::from("https://example.org")
+        ]
+    );
     assert_eq!(parser.get_title(), "Test Title");
 }

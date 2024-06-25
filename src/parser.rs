@@ -1,3 +1,5 @@
+use std::{borrow::Borrow, clone};
+
 use rcdom::{Handle, NodeData};
 use tendril::TendrilSink;
 
@@ -31,15 +33,12 @@ impl Parser {
         Ok(())
     }
 
-    //  function reads the html and sets the a tags and title tags
+    // function reads the html and sets the a tags and title tags
     pub fn parse(&mut self) {
-        let node = self.handle.as_ref().unwrap();
-
-        let mut hrefs: Vec<String> = vec![];
-        let mut title = String::new();
-        self.parse_rec(Some(&node), &mut hrefs, &mut title);
-        self.hrefs = hrefs;
-        self.title = title;
+        let handle = self.handle.as_ref().unwrap().clone();
+        let handle1 = handle.clone();
+        self.extract_a_tags(handle);
+        self.extract_tags(handle1);
     }
 
     pub fn parse_rec(
@@ -104,20 +103,15 @@ impl Parser {
         }
     }
 
-    fn extract_tags<S: Into<&'static str>>(
-        &mut self,
-        handle: &Handle,
-        tag: S,
-    ) {
+    fn extract_tags(&mut self, handle: Handle) {
         let node = handle;
-        let tag: &str = tag.into();
         match node.data {
             NodeData::Element {
                 ref name,
                 ref attrs,
                 ..
             } => {
-                if &name.local == tag {
+                if &name.local == "title" {
                     attrs.borrow().iter().for_each(|attr| {
                         self.title = attr.value.to_string();
                     });
@@ -126,7 +120,7 @@ impl Parser {
             _ => {}
         }
         for child in node.children.borrow().iter() {
-            self.extract_tags(&child.clone(), tag);
+            self.extract_tags(child.clone());
         }
     }
 
@@ -138,7 +132,7 @@ impl Parser {
         &self.title
     }
 
-    pub fn get_handle(&self) -> &Handle {
-        self.handle.as_ref().unwrap()
-    }
+    // pub fn get_handle(&self) -> &Handle {
+    //     self.handle.as_ref().unwrap()
+    // }
 }
