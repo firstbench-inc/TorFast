@@ -15,7 +15,7 @@ impl Poster {
     ) -> Result<(), reqwest::Error> {
         let res = self
             .client
-            .post("http://127.0.0.1:9200/logs/_doc")
+            .post("http://elasticsearch:9200/logs/_doc")
             .json(data)
             .send()
             .await?;
