@@ -17,7 +17,7 @@ use tokio::{
 };
 
 use crate::{fetcher::Fetcher, parser::Parser, poster::Poster};
-
+use::tokio::time::{interval,Duration};
 pub struct Crawler {
     to_visit: VecDeque<String>,
     fetcher: Arc<Fetcher>,
@@ -132,6 +132,10 @@ impl Crawler {
                 self.bfilter.insert(&url);
                 self.add_url();
             }
+            // timer.tick().await;
+            // println!("Successfully processed URLs: {}", success_count);
+            // println!("Failed to process URLs: {}", failure_count);
+
 
             println!("Processing URL: {}", url); // Debug statement
                                                  //
@@ -143,6 +147,8 @@ impl Crawler {
             let semaphore = self.semaphore.clone();
             let buf_size = self.buffer_size;
 
+            let base_url = url.clone();
+
             let sc = success_count.clone();
             let fc = failure_count.clone();
 
@@ -150,7 +156,7 @@ impl Crawler {
                 // success_count += 1;
                 // self.visited_n = 0;
                 // self.handle_url(url).await;
-                semaphore.acquire().await.unwrap();
+                let sem_handle = semaphore.acquire().await.unwrap();
                 match f.fetch(&url).await {
                     Ok(resp) => {
                         match sc.lock() {
@@ -164,42 +170,39 @@ impl Crawler {
                         task::spawn(async move {
                             let post = post;
                             let mut p = Parser::new();
-                            p.set_handle(&resp);
-                            p.parse();
-                            println!("{:?}", &p.get_hrefs());
-                            let mut y = y.lock().unwrap();
-                            // y.append(&mut VecDeque::from(p.get_hrefs().clone()));
-                            append_to_vec(y.borrow_mut(), &p.get_hrefs(), buf_size);
-                            let mut page_data = HashMap::new();
-                            page_data.insert("link".to_string(), u);
-                            page_data.insert("content".to_string(), resp);
-                            page_data
-                            .insert("title".to_string(), p.get_title().clone());
-                            task::spawn(async {
-                                let x = post;
-                                let page_data = page_data;
-                                match x.post_url_data(&page_data).await {
-                                    Ok(_) => {
-                                        println!("Posted to Elasticsearch");
-                                    }
-                                    Err(e) => {
-                                        println!(
-                                            "Failed to post to Elasticsearch: {:?}",
-                                            e
-                                        );
-                                    }
-                                }
-                            })
+                            if p.set_handle(&resp, &base_url).is_ok() { // Pass base URL
+                                p.parse();
+                                // println!("{:?}", &p.get_hrefs());
+                                let mut y = y.lock().unwrap();
+                                append_to_vec(y.borrow_mut(), &p.get_hrefs(), buf_size);
+                                let mut page_data = HashMap::new();
+                                page_data.insert("link".to_string(), u);
+                                page_data.insert("content".to_string(), resp);
+                                page_data.insert("title".to_string(), p.get_title().clone());
+                                // task::spawn(async {
+                                //     let x = post;
+                                //     let page_data = page_data;
+                                //     match x.post_url_data(&page_data).await {
+                                //         Ok(_) => {
+                                //             println!("Posted to Elasticsearch");
+                                //         }
+                                //         Err(e) => {
+                                //             println!("Failed to post to Elasticsearch: {:?}", e);
+                                //         }
+                                //     }
+                                // });
+                            }
                         });
                     }
                     Err(e) => {
-                        println!("Failed to fetch: {:?}", e);
+                        println!("Failed to fetch: {:?} : {:?}", e, &url);
                         match fc.lock() {
                             Ok(mut fc) => *fc += 1,
                             Err(e) => println!("Failed to increment success count: {:?}", e),
                         };
                     }
                 };
+                drop(sem_handle);
             });
             // handle_vec.push(handle);
             // // if let ControlFlow::Break(_) = self.handle_url(url, &mut failure_count, &mut success_count).await {
