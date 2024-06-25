@@ -132,7 +132,7 @@ impl Crawler {
                 self.bfilter.insert(&url);
                 self.add_url();
             }
-            timer.tick().await;
+            // timer.tick().await;
             println!("Successfully processed URLs: {}", success_count);
             println!("Failed to process URLs: {}", failure_count);
 
@@ -144,6 +144,7 @@ impl Crawler {
             let y = to_visit.clone();
             let semaphore = self.semaphore.clone();
             let buf_size = self.buffer_size;
+            let base_url = url.clone();
             let handle = task::spawn(async move {
                 // success_count += 1;
                 // self.visited_n = 0;
@@ -158,32 +159,28 @@ impl Crawler {
                         task::spawn(async move {
                             let post = post;
                             let mut p = Parser::new();
-                            p.set_handle(&resp);
-                            p.parse();
-                            println!("{:?}", &p.get_hrefs());
-                            let mut y = y.lock().unwrap();
-                            // y.append(&mut VecDeque::from(p.get_hrefs().clone()));
-                            append_to_vec(y.borrow_mut(), &p.get_hrefs(), buf_size);
-                            let mut page_data = HashMap::new();
-                            page_data.insert("link".to_string(), u);
-                            page_data.insert("content".to_string(), resp);
-                            page_data
-                            .insert("title".to_string(), p.get_title().clone());
-                            task::spawn(async {
-                                let x = post;
-                                let page_data = page_data;
-                                match x.post_url_data(&page_data).await {
-                                    Ok(_) => {
-                                        println!("Posted to Elasticsearch");
+                            if p.set_handle(&resp, &base_url).is_ok() { // Pass base URL
+                                p.parse();
+                                println!("{:?}", &p.get_hrefs());
+                                let mut y = y.lock().unwrap();
+                                append_to_vec(y.borrow_mut(), &p.get_hrefs(), buf_size);
+                                let mut page_data = HashMap::new();
+                                page_data.insert("link".to_string(), u);
+                                page_data.insert("content".to_string(), resp);
+                                page_data.insert("title".to_string(), p.get_title().clone());
+                                task::spawn(async {
+                                    let x = post;
+                                    let page_data = page_data;
+                                    match x.post_url_data(&page_data).await {
+                                        Ok(_) => {
+                                            println!("Posted to Elasticsearch");
+                                        }
+                                        Err(e) => {
+                                            println!("Failed to post to Elasticsearch: {:?}", e);
+                                        }
                                     }
-                                    Err(e) => {
-                                        println!(
-                                            "Failed to post to Elasticsearch: {:?}",
-                                            e
-                                        );
-                                    }
-                                }
-                            })
+                                });
+                            }
                         });
                     }
                     Err(e) => {

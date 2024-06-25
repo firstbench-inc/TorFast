@@ -1,12 +1,12 @@
-use std::{borrow::Borrow, clone};
-
 use rcdom::{Handle, NodeData};
 use tendril::TendrilSink;
+use url::{Url, ParseError};
 
 pub struct Parser {
     hrefs: Vec<String>,
     title: String,
     handle: Option<Handle>,
+    base_url: Option<Url>, // Add base_url field
 }
 
 impl Parser {
@@ -15,112 +15,30 @@ impl Parser {
             hrefs: Vec::new(),
             title: String::new(),
             handle: None,
+            base_url: None, // Initialize base_url
         }
     }
 
     pub fn set_handle(
         &mut self,
-        text: &String,
+        text: &str,
+        base_url: &str,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let dom = html5ever::parse_document(
             rcdom::RcDom::default(),
             Default::default(),
         )
         .from_utf8()
-        .read_from(&mut text.as_bytes())
-        .unwrap();
+        .read_from(&mut text.as_bytes())?;
+
         self.handle = Some(dom.document);
+        self.base_url = Some(Url::parse(base_url)?); // Parse and store the base URL
         Ok(())
     }
 
-    // function reads the html and sets the a tags and title tags
     pub fn parse(&mut self) {
-        let handle = self.handle.as_ref().unwrap().clone();
-        let handle1 = handle.clone();
-        self.extract_a_tags(handle);
-        self.extract_tags(handle1);
-    }
-
-    pub fn parse_rec(
-        &self,
-        handle: Option<&Handle>,
-        mut hrefs: &mut Vec<String>,
-        mut title: &mut String,
-    ) {
-        let node = handle.unwrap();
-        if let NodeData::Element { name, attrs, .. } = &node.data {
-            let attrs = attrs.borrow();
-
-            if &name.local == "a" {
-                hrefs.extend(
-                    attrs
-                        .iter()
-                        .filter(|attr| {
-                            attr.name.local.to_string() == "href"
-                        })
-                        .map(|attr| attr.value.to_string()),
-                );
-            };
-
-            if &name.local == "title" {
-                node.children.borrow().iter().for_each(|child| {
-                    if let NodeData::Text { contents } = &child.data {
-                        *title = contents.borrow().to_string();
-                    }
-                });
-            }
-        };
-
-        for child in node.children.borrow().iter() {
-            self.parse_rec(Some(&child), &mut hrefs, &mut title);
-        }
-    }
-
-    fn extract_a_tags(&mut self, handle: Handle) {
-        let node = handle;
-        match node.data {
-            NodeData::Element {
-                ref name,
-                ref attrs,
-                ..
-            } => {
-                if &name.local == "a" {
-                    attrs
-                        .borrow()
-                        .iter()
-                        .filter(|x| {
-                            x.name.local.to_string() == "href"
-                        })
-                        .for_each(|attr| {
-                            self.hrefs.push(attr.value.to_string());
-                        });
-                }
-            }
-            _ => {}
-        }
-        for child in node.children.borrow().iter() {
-            self.extract_a_tags(child.clone());
-        }
-    }
-
-    fn extract_tags(&mut self, handle: Handle) {
-        let node = handle;
-        match node.data {
-            NodeData::Element {
-                ref name,
-                ref attrs,
-                ..
-            } => {
-                if &name.local == "title" {
-                    attrs.borrow().iter().for_each(|attr| {
-                        self.title = attr.value.to_string();
-                    });
-                }
-            }
-            _ => {}
-        }
-        for child in node.children.borrow().iter() {
-            self.extract_tags(child.clone());
+        if let Some(handle) = self.handle.as_ref().cloned() {
+            self.extract_tags(handle);
         }
     }
 
@@ -132,7 +50,39 @@ impl Parser {
         &self.title
     }
 
-    // pub fn get_handle(&self) -> &Handle {
-    //     self.handle.as_ref().unwrap()
-    // }
+    fn extract_tags(&mut self, handle: Handle) {
+        let node = handle;
+        if let NodeData::Element { ref name, ref attrs, .. } = node.data {
+            if name.local.as_ref() == "a" {
+                for attr in attrs.borrow().iter() {
+                    if attr.name.local.as_ref() == "href" {
+                        let href = attr.value.to_string();
+                        if let Some(resolved_url) = self.resolve_url(&href) {
+                            self.hrefs.push(resolved_url);
+                        }
+                    }
+                }
+            } else if name.local.as_ref() == "title" {
+                for child in node.children.borrow().iter() {
+                    if let NodeData::Text { ref contents } = child.data {
+                        self.title = contents.borrow().to_string();
+                    }
+                }
+            }
+        }
+        for child in node.children.borrow().iter() {
+            self.extract_tags(child.clone());
+        }
+    }
+
+    fn resolve_url(&self, url: &str) -> Option<String> {
+        if let Some(base_url) = &self.base_url {
+            match base_url.join(url) {
+                Ok(resolved) => Some(resolved.into()),
+                Err(_) => None,
+            }
+        } else {
+            None
+        }
+    }
 }
