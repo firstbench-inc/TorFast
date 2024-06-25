@@ -133,8 +133,8 @@ impl Crawler {
                 self.add_url();
             }
             // timer.tick().await;
-            println!("Successfully processed URLs: {}", success_count);
-            println!("Failed to process URLs: {}", failure_count);
+            // println!("Successfully processed URLs: {}", success_count);
+            // println!("Failed to process URLs: {}", failure_count);
 
 
             println!("Processing URL: {}", url); // Debug statement
