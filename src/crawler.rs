@@ -2,7 +2,7 @@ use std::{
     borrow::{Borrow, BorrowMut},
     collections::{HashMap, VecDeque},
     io::Write,
-    ops::ControlFlow,
+    ops::{Add, ControlFlow},
     rc::Rc,
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -88,8 +88,8 @@ impl Crawler {
     pub async fn start(
         &mut self,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        let mut success_count = 0;
-        let mut failure_count = 0;
+        let mut success_count = Arc::new(Mutex::new(0));
+        let mut failure_count = Arc::new(Mutex::new(0));
         let fetcher = Arc::new(Fetcher::new());
         let parser = Arc::new(Parser::new());
         let poster = Arc::new(Poster::new());
@@ -134,12 +134,18 @@ impl Crawler {
             }
 
             println!("Processing URL: {}", url); // Debug statement
+                                                 //
             let f = fetcher.clone();
             // let pa = parser.clone();
             let po = poster.clone();
             let y = to_visit.clone();
+
             let semaphore = self.semaphore.clone();
             let buf_size = self.buffer_size;
+
+            let sc = success_count.clone();
+            let fc = failure_count.clone();
+
             let handle = task::spawn(async move {
                 // success_count += 1;
                 // self.visited_n = 0;
@@ -147,7 +153,11 @@ impl Crawler {
                 semaphore.acquire().await.unwrap();
                 match f.fetch(&url).await {
                     Ok(resp) => {
-                        success_count += 1;
+                        match sc.lock() {
+                            Ok(mut sc) => *sc += 1,
+                            Err(e) => println!("Failed to increment success count: {:?}", e),
+                        };
+
                         let u = url.clone();
                         let post = po.clone();
                         let y = y;
@@ -184,7 +194,10 @@ impl Crawler {
                     }
                     Err(e) => {
                         println!("Failed to fetch: {:?}", e);
-                        failure_count += 1;
+                        match fc.lock() {
+                            Ok(mut fc) => *fc += 1,
+                            Err(e) => println!("Failed to increment success count: {:?}", e),
+                        };
                     }
                 };
             });
@@ -196,8 +209,8 @@ impl Crawler {
         // for handle in handle_vec {
         //     handle.await.unwrap();
         // }
-        println!("Successfully processed URLs: {}", success_count);
-        println!("Failed to process URLs: {}", failure_count);
+        println!("Successfully processed URLs: {}", success_count.lock().unwrap());
+        println!("Failed to process URLs: {}", failure_count.lock().unwrap());
         Ok(())
     }
 
