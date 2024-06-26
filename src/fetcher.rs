@@ -1,4 +1,6 @@
-use reqwest::{Client, Proxy};
+use std::fmt::Debug;
+
+use reqwest::{Client, IntoUrl, Proxy};
 
 pub struct Fetcher {
     client: Client,
@@ -7,7 +9,7 @@ pub struct Fetcher {
 impl Fetcher {
     // Constructor to create a new Fetcher instance
     pub fn new() -> Self {
-        let proxy = Proxy::all("tor:9050")
+        let proxy = Proxy::all("http://127.0.0.1:9050")
             .expect("tor proxy should be there");
         let client = Client::builder()
             .proxy(proxy)
@@ -18,12 +20,13 @@ impl Fetcher {
     }
 
     // The fetch method
-    pub async fn fetch<S: Into<String>>(
+    pub async fn fetch<S: Into<String> + IntoUrl + Clone + Debug>(
         &self,
         url: S,
     ) -> Result<String, reqwest::Error> {
-        let res = self.client.get(url.into()).send().await?;
-        println!("Status: {}", res.status());
+        let url_str = url.clone();
+        let res = self.client.get(url).send().await?;
+        println!("Status: {} URL {:?}", res.status(),url_str);
 
         let text = res.text().await?;
         Ok(text)
