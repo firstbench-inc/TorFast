@@ -19,7 +19,7 @@ impl Fetcher {
     }
 
     // The fetch method
-    pub async fn fetch<S: Into<String> + IntoUrl + Clone + Debug>(
+    pub async fn fetch<S: Into<String>>(
         &self,
         url: S,
     ) -> Result<String, reqwest::Error> {
