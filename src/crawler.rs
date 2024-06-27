@@ -134,10 +134,11 @@ impl Crawler {
                         };
 
                         let u = url.clone();
-                        let post = po.clone();
+                        // let post = po.clone();
                         let y = y;
                         task::spawn(async move {
                             let mut p = Parser::new();
+                            let mut post = Poster::new();
                             if p.set_handle(&resp, &base_url).is_ok() {
                                 p.parse();
                                 let mut y = y.lock().unwrap();
@@ -146,6 +147,10 @@ impl Crawler {
                                 page_data.insert("link".to_string(), u);
                                 page_data.insert("content".to_string(), resp);
                                 page_data.insert("title".to_string(), p.get_title().clone());
+                                // post.as_ref().post_url_data(&page_data).await;
+                                task::spawn(async move {
+                                    post.post_url_data(&page_data).await;
+                                });
                             }
                         });
                     }
