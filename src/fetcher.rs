@@ -1,4 +1,5 @@
 use reqwest::{Client, Proxy};
+use tokio::time::Instant;
 
 pub struct Fetcher {
     client: Client,
@@ -22,8 +23,9 @@ impl Fetcher {
         &self,
         url: S,
     ) -> Result<String, reqwest::Error> {
+        let instant = Instant::now();
         let res = self.client.get(url.into()).send().await?;
-        println!("Status: {}", res.status());
+        println!("Status: {}, Time: {}", res.status(), instant.elapsed().as_millis());
 
         let text = res.text().await?;
         Ok(text)
