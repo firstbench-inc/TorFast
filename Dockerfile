@@ -1,31 +1,36 @@
-# Step 1: Build the application
-FROM rust:latest AS builder
+FROM rust:1-slim-bookworm as builder
 
-# Create app directory
 WORKDIR /app
 
-# Copy the entire project into the container
 COPY . .
 
-# Build the Rust application
+# syntax=docker/dockerfile:1
+RUN rm -f /etc/apt/apt.conf.d/docker-clean; echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.conf.d/keep-cache
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+  --mount=type=cache,target=/var/lib/apt,sharing=locked \
+  apt update && apt-get --no-install-recommends install -y libssl-dev ca-certificates wget gnupg2 lsb-release pkg-config
+
 RUN cargo build --release
+# Not Implemented URL "http://torlinkv7cft5zhegrokjrxj2st4hcimgidaxdmcmdpcrnwfxrr2zxqd.onion/"
+FROM rust:1-slim-bookworm
+# syntax=docker/dockerfile:1
 
-# Step 2: Create a minimal image with the built binary
-FROM debian:bookworm-slim
+# RUN touch /etc/apt/sources.list.d/tor.list
+# RUN echo "deb     [signed-by=/usr/share/keyrings/tor-archive-keyring.gpg] https://deb.torproject.org/torproject.org bookworm main" >> /etc/apt/sources.list.d/tor.list
+# RUN echo "deb-src [signed-by=/usr/share/keyrings/tor-archive-keyring.gpg] https://deb.torproject.org/torproject.org bookworm main" >> /etc/apt/sources.list.d/tor.list
+# RUN wget -qO- https://deb.torproject.org/torproject.org/A3C4F0F979CAA22CDBA8F512EE8CBC9E886DDD89.asc | gpg --dearmor | tee /usr/share/keyrings/tor-archive-keyring.gpg >/dev/null 
+RUN apt update && apt-get --yes --force-yes install tor 
 
-# Install the necessary dependencies for running the binary
-RUN apt-get update && apt-get install -y \
-    libssl-dev \
-    ca-certificates \
-    && rm -rf /var/lib/apt/lists/*\
-    && apt-get update && apt install -y openssl
-
-# Create a non-root user and switch to it
-# Copy the built binary from the builder stage
 COPY --from=builder /app/target/release/crawle-rs /usr/local/bin/crawle-rs
 
-# Copy any other necessary files (e.g., configuration files)
-# COPY config /path/to/config
+RUN touch prog.sh
+RUN touch tor.sh
+RUN echo "tor &" >> "tor.sh"
+RUN echo "sh tor.sh > /dev/null" >> prog.sh
+RUN echo "sleep 5" >> prog.sh
+# RUN echo "/bin/systemctl start elasticsearch.service" >> prog.sh
+RUN echo "/usr/local/bin/crawle-rs" >> prog.sh
 
-# Set the entrypoint to the built binary
-ENTRYPOINT ["crawle-rs"]
+RUN rm -f /etc/apt/apt.conf.d/docker-clean; echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.conf.d/keep-cache
+
+CMD ["sh", "prog.sh"]

@@ -9,7 +9,7 @@ pub struct Fetcher {
 impl Fetcher {
     // Constructor to create a new Fetcher instance
     pub fn new() -> Self {
-        let proxy = Proxy::all("http://127.0.0.1:9050")
+        let proxy = Proxy::all("socks5h://127.0.0.1:9050")
             .expect("tor proxy should be there");
         let client = Client::builder()
             .proxy(proxy)
@@ -24,6 +24,7 @@ impl Fetcher {
         &self,
         url: S,
     ) -> Result<String, reqwest::Error> {
+
         let url_str = url.clone();
         let res = self.client.get(url).send().await?;
         println!("Status: {} URL {:?}", res.status(),url_str);
