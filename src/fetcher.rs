@@ -1,6 +1,5 @@
-use std::fmt::Debug;
-
-use reqwest::{Client, IntoUrl, Proxy};
+use reqwest::{Client, Proxy};
+use tokio::time::Instant;
 
 pub struct Fetcher {
     client: Client,
@@ -24,10 +23,9 @@ impl Fetcher {
         &self,
         url: S,
     ) -> Result<String, reqwest::Error> {
-
-        let url_str = url.clone();
-        let res = self.client.get(url).send().await?;
-        println!("Status: {} URL {:?}", res.status(),url_str);
+        let instant = Instant::now();
+        let res = self.client.get(url.into()).send().await?;
+        println!("Status: {}, Time: {}", res.status(), instant.elapsed().as_millis());
 
         let text = res.text().await?;
         Ok(text)

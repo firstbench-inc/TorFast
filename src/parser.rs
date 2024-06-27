@@ -1,5 +1,6 @@
 use rcdom::{Handle, NodeData};
 use tendril::TendrilSink;
+use tokio::time::Instant;
 use url::{ParseError, Url};
 
 pub struct Parser {
@@ -37,9 +38,15 @@ impl Parser {
     }
 
     pub fn parse(&mut self) {
+        let instant = Instant::now();
         if let Some(handle) = self.handle.as_ref().cloned() {
             self.extract_tags(handle);
         }
+        println!(
+            "parsed time base url: {}, time: {}us",
+            &self.base_url.as_ref().unwrap().as_str(),
+            instant.elapsed().as_micros()
+        );
     }
 
     pub fn get_hrefs(&self) -> &Vec<String> {
