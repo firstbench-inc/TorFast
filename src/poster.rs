@@ -9,16 +9,22 @@ impl Poster {
         let client = reqwest::Client::new();
         Poster { client }
     }
+
     pub async fn post_url_data(
         &self,
         data: &HashMap<String, String>,
     ) -> Result<(), reqwest::Error> {
-        let res = self
+        let res = match self
             .client
-            .post("http://elasticsearch:9200/logs/_doc")
+            .post("http://localhost:9200/logs/_doc")
             .json(data)
             .send()
-            .await?;
+            .await {
+                Ok(res) => res,
+                Err(e) => {
+                    return Err(e);
+                }
+            };
 
         println!("Posted data: {:?}", res);
         Ok(())

@@ -27,7 +27,7 @@ RUN touch prog.sh
 RUN touch tor.sh
 RUN echo "tor &" >> "tor.sh"
 RUN echo "sh tor.sh > /dev/null" >> prog.sh
-RUN echo "sleep 5" >> prog.sh
+RUN echo "sleep 15" >> prog.sh
 # RUN echo "/bin/systemctl start elasticsearch.service" >> prog.sh
 RUN echo "/usr/local/bin/crawle-rs" >> prog.sh
 

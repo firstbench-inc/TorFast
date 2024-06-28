@@ -1,13 +1,8 @@
 use std::{
-    borrow::{Borrow, BorrowMut},
-    collections::{HashMap, VecDeque},
-    io::Write,
-    ops::{Add, ControlFlow},
-    rc::Rc,
-    sync::{
+    borrow::{Borrow, BorrowMut}, collections::{HashMap, VecDeque}, io::Write, ops::{Add, ControlFlow}, rc::Rc, sync::{
         atomic::{AtomicBool, Ordering},
         Arc, Mutex,
-    },
+    }
 };
 
 use fastbloom::BloomFilter;
@@ -134,10 +129,11 @@ impl Crawler {
                         };
 
                         let u = url.clone();
-                        let post = po.clone();
+                        // let post = po.clone();
                         let y = y;
                         task::spawn(async move {
                             let mut p = Parser::new();
+                            let mut post = Poster::new();
                             if p.set_handle(&resp, &base_url).is_ok() {
                                 p.parse();
                                 let mut y = y.lock().unwrap();
@@ -146,6 +142,15 @@ impl Crawler {
                                 page_data.insert("link".to_string(), u);
                                 page_data.insert("content".to_string(), resp);
                                 page_data.insert("title".to_string(), p.get_title().clone());
+                                task::spawn(async move {
+                                    match post.post_url_data(&page_data).await {
+                                        Ok(_) => {},
+                                        Err(e) => {
+                                            // println!("no meow :(");
+                                            println!("Failed to post data: {:?}", e);
+                                        }
+                                    }
+                                });
                             }
                         });
                     }
