@@ -129,10 +129,11 @@ impl Crawler {
                         };
 
                         let u = url.clone();
-                        let post = po.clone();
+                        // let post = po.clone();
                         let y = y;
                         task::spawn(async move {
                             let mut p = Parser::new();
+                            let mut post = Poster::new();
                             if p.set_handle(&resp, &base_url).is_ok() {
                                 p.parse();
                                 let mut y = y.lock().unwrap();

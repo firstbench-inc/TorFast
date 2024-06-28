@@ -16,7 +16,7 @@ impl Poster {
     ) -> Result<(), reqwest::Error> {
         let res = match self
             .client
-            .post("localhost:9200/logs/_doc")
+            .post("http://127.0.0.1:9200/logs/_doc")
             .json(data)
             .send()
             .await {
