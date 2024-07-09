@@ -105,7 +105,7 @@ impl Crawler {
                 continue;
             } else {
                 self.bfilter.insert(&url);
-                self.add_url();
+                self.add_url(&url);
             }
 
             println!("Processing URL: {}", url); // Debug statement
@@ -171,11 +171,13 @@ impl Crawler {
         Ok(())
     }
 
-    fn add_url(&mut self) {
+    fn add_url(&mut self, url: &String) {
         if self.visited.len() >= (self.buffer_size as f64 * 0.8) as usize {
             self.stash_urls();
+            self.visited.clear();
         }
         self.visited_n += 1;
+        self.visited.push(Some(url.clone()));
     }
 
     fn stash_urls(&mut self) {

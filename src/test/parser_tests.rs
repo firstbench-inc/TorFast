@@ -6,7 +6,10 @@ use crate::parser::Parser;
 fn test_parse_empty_document() {
     let mut parser = Parser::new();
     let html = String::from("<html></html>");
-    parser.set_handle(&html).expect("Failed to set handle");
+    let url = "https://example.com";
+    parser
+        .set_handle(&html, &url)
+        .expect("Failed to set handle");
     parser.parse();
 
     assert!(parser.get_hrefs().is_empty());
@@ -15,6 +18,7 @@ fn test_parse_empty_document() {
 
 #[test]
 fn test_parse_with_links() {
+    let url = "https://example.com";
     let mut parser = Parser::new();
     let html = String::from(
         r#"
@@ -27,7 +31,9 @@ fn test_parse_with_links() {
         </html>
     "#,
     );
-    parser.set_handle(&html).expect("Failed to set handle");
+    parser
+        .set_handle(&html, &url)
+        .expect("Failed to set handle");
     parser.parse();
 
     assert_eq!(

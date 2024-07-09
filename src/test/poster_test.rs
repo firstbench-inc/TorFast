@@ -24,8 +24,8 @@ async fn test_post_url_data() {
     let mut data = HashMap::new();
     let v1 = "value1".to_string();
     let v2 = "value2".to_string();
-    data.insert("key1".to_string(), &v1);
-    data.insert("key2".to_string(), &v2);
+    data.insert("key1".to_string(), v1);
+    data.insert("key2".to_string(), v2);
 
     // Call the post_url_data method with the mock server's URL
     let result = poster.post_url_data(&data).await;
