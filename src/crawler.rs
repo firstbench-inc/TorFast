@@ -42,7 +42,7 @@ impl Crawler {
         let visited = Vec::new();
         let buffer_size = N;
         let visited_n = 0;
-        let semaphore = Arc::new(tokio::sync::Semaphore::new(100));
+        let semaphore = Arc::new(tokio::sync::Semaphore::new(1000));
         let file = match path {
             Some(path) => {
                 let file = std::fs::OpenOptions::new()
