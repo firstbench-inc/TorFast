@@ -1,0 +1,72 @@
+body {
+    background-image: url('t2.gif'); /* Example dark web GIF */
+    background-size: cover; /* Cover the entire background */
+    background-position: center center; /* Center the background */
+    background-repeat: no-repeat; /* No repeating of background */
+    color: #ccc; /* Light text color */
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    overflow: hidden; /* Hide overflow to prevent scrollbars */
+    height: 100vh; /* Ensure body takes the full height of the viewport */
+    margin: 0; /* Remove default margin */
+}
+
+.container {
+    max-width: 800px;
+    margin: 20vh auto; /* Center vertically and horizontally */
+    padding: 20px;
+    text-align: center;
+    position: relative; /* Ensure relative positioning for z-index stacking */
+    z-index: 20; /* Ensure the content appears above the spider */
+    background: rgba(0, 0, 0, 0.7); /* Add a darker semi-transparent background for better text readability */
+    border-radius: 10px; /* Rounded corners for aesthetics */
+}
+
+h1 {
+    font-size: 2.5em;
+    margin-bottom: 20px;
+    color: #fff; /* White text */
+    text-shadow: 0 0 10px #ff0000; /* Add a glowing red text shadow */
+}
+
+input[type="text"], button {
+    padding: 10px;
+    font-size: 1em;
+    border: none;
+    border-radius: 5px;
+}
+
+input[type="text"] {
+    width: 60%;
+    background-color: #111; /* Darker input background */
+    color: #ccc; /* Light text color */
+    box-shadow: 0 0 5px #000; /* Add a slight shadow */
+}
+
+button {
+    background-color: #333;
+    color: #eee;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+button:hover {
+    background-color: #555;
+}
+
+#results {
+    margin-top: 20px;
+    text-align: left;
+}
+
+/* Spider GIF styling */
+.spider {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: url('https://media.tenor.com/8k1wD6n4A6EAAAAC/spider-creepy.gif') no-repeat center center; /* Example spider GIF */
+    background-size: contain;
+    z-index: 10; /* Ensure the spider appears behind the container */
+    opacity: 0.3; /* Make the spider semi-transparent */
+}
