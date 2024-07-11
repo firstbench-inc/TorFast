@@ -1,7 +1,7 @@
 function search() {
     const searchInput = document.getElementById('searchInput').value.trim();
 
-    const elasticSearchUrl = 'http://localhost:9200/logs/_search';
+    const elasticSearchUrl = 'http://localhost:9200/logs/_search?q='+searchInput;
 
     const searchData = {
         query: {
@@ -12,11 +12,11 @@ function search() {
     };
 
     const fetchOptions = {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(searchData)
+        method: 'GET',
+        // headers: {
+        //     'Content-Type': 'application/json'
+        // },
+        // body: JSON.stringify(searchData)
     };
 
     fetch(elasticSearchUrl, fetchOptions)
@@ -28,6 +28,7 @@ function search() {
         })
         .then(data => {
             const hits = data.hits.hits;
+            console.log(hits)
             displayResults(hits);
         })
         .catch(error => {
