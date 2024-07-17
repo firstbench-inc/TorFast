@@ -1,16 +1,23 @@
 use std::{
-    borrow::{Borrow, BorrowMut}, collections::{HashMap, VecDeque}, io::Write, ops::{Add, ControlFlow}, rc::Rc, sync::{
+    borrow::{Borrow, BorrowMut},
+    collections::{HashMap, VecDeque},
+    io::Write,
+    ops::{Add, ControlFlow},
+    rc::Rc,
+    sync::{
         atomic::{AtomicBool, Ordering},
         Arc, Mutex,
-    }
+    },
 };
 
 use fastbloom::BloomFilter;
+use tokio::time::{interval, Duration};
 use tokio::{
     sync::mpsc,
     task::{self, JoinSet},
 };
-use tokio::time::{interval, Duration};
+
+use redis::{self, RedisError, RedisResult};
 
 use crate::{fetcher::Fetcher, parser::Parser, poster::Poster};
 
@@ -20,7 +27,7 @@ pub struct Crawler {
     poster: Arc<Poster>,
     parser: Arc<Parser>,
     stop_flag: Arc<AtomicBool>,
-    bfilter: BloomFilter,
+    redis_client: Arc<redis::Client>,
     visited: Vec<Option<String>>,
     visited_n: usize,
     file: Option<std::fs::File>,
@@ -37,7 +44,9 @@ impl Crawler {
         let fetcher = Arc::new(Fetcher::new());
         let poster = Arc::new(Poster::new());
         let parser = Arc::new(Parser::new());
-        let bfilter = BloomFilter::with_num_bits(200_000_000).expected_items(100_000_000);
+        let redis_client = Arc::new(
+            redis::Client::open("redis://127.0.0.1").unwrap(),
+        );
         const NONE: Option<String> = None;
         let visited = Vec::new();
         let buffer_size = N;
@@ -53,7 +62,10 @@ impl Crawler {
                 match file {
                     Ok(file) => Some(file),
                     Err(e) => {
-                        println!("Failed to open or create file: {:?}", e);
+                        println!(
+                            "Failed to open or create file: {:?}",
+                            e
+                        );
                         None
                     }
                 }
@@ -67,7 +79,7 @@ impl Crawler {
             poster,
             parser,
             stop_flag,
-            bfilter,
+            redis_client,
             visited,
             visited_n,
             file,
@@ -76,7 +88,9 @@ impl Crawler {
         }
     }
 
-    pub async fn start(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn start(
+        &mut self,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let success_count = Arc::new(Mutex::new(0));
         let failure_count = Arc::new(Mutex::new(0));
         let fetcher = Arc::new(Fetcher::new());
@@ -101,11 +115,16 @@ impl Crawler {
                 break;
             }
 
-            if self.bfilter.contains(&url) {
-                continue;
-            } else {
-                self.bfilter.insert(&url);
-                self.add_url(&url);
+            match self.in_redis(url.clone()).await {
+                Ok(resp) => {
+                    if resp {
+                        continue;
+                    }
+                    self.add_url(&url);
+                }
+                Err(e) => {
+                    println!("Failed to check redis: {:?}", e);
+                }
             }
 
             println!("Processing URL: {}", url); // Debug statement
@@ -134,17 +153,32 @@ impl Crawler {
                         task::spawn(async move {
                             let mut p = Parser::new();
                             let mut post = Poster::new();
-                            if p.set_handle(&resp, &base_url).is_ok() {
+                            if p.set_handle(&resp, &base_url).is_ok()
+                            {
                                 p.parse();
                                 let mut y = y.lock().unwrap();
-                                append_to_vec(y.borrow_mut(), &p.get_hrefs(), buf_size);
+                                append_to_vec(
+                                    y.borrow_mut(),
+                                    &p.get_hrefs(),
+                                    buf_size,
+                                );
                                 let mut page_data = HashMap::new();
-                                page_data.insert("link".to_string(), u);
-                                page_data.insert("content".to_string(), resp);
-                                page_data.insert("title".to_string(), p.get_title().clone());
+                                page_data
+                                    .insert("link".to_string(), u);
+                                page_data.insert(
+                                    "content".to_string(),
+                                    resp,
+                                );
+                                page_data.insert(
+                                    "title".to_string(),
+                                    p.get_title().clone(),
+                                );
                                 task::spawn(async move {
-                                    match post.post_url_data(&page_data).await {
-                                        Ok(_) => {},
+                                    match post
+                                        .post_url_data(&page_data)
+                                        .await
+                                    {
+                                        Ok(_) => {}
                                         Err(e) => {
                                             // println!("no meow :(");
                                             println!("Failed to post data: {:?}", e);
@@ -155,7 +189,10 @@ impl Crawler {
                         });
                     }
                     Err(e) => {
-                        println!("Failed to fetch: {:?} : {:?}", e, &url);
+                        println!(
+                            "Failed to fetch: {:?} : {:?}",
+                            e, &url
+                        );
                         match fc.lock() {
                             Ok(mut fc) => *fc += 1,
                             Err(e) => println!("Failed to increment success count: {:?}", e),
@@ -166,13 +203,45 @@ impl Crawler {
             });
         }
 
-        println!("Successfully processed URLs: {}", success_count.lock().unwrap());
-        println!("Failed to process URLs: {}", failure_count.lock().unwrap());
+        println!(
+            "Successfully processed URLs: {}",
+            success_count.lock().unwrap()
+        );
+        println!(
+            "Failed to process URLs: {}",
+            failure_count.lock().unwrap()
+        );
         Ok(())
     }
 
+    async fn in_redis(&self, url: String) -> RedisResult<bool> {
+        let mut con = self
+            .redis_client
+            .get_multiplexed_tokio_connection()
+            .await?;
+
+        // con.
+        let res: isize = redis::cmd("BF.EXISTS")
+            .arg(&["urls", url.as_str()])
+            .query_async(&mut con)
+            .await?;
+        
+        if res == 1 {
+            return RedisResult::Ok(true)
+        };
+
+        let _: bool = redis::cmd("BF.ADD")
+            .arg(&["urls", url.as_str()])
+            .query_async(&mut con)
+            .await?;
+
+        RedisResult::Ok(false)
+    }
+
     fn add_url(&mut self, url: &String) {
-        if self.visited.len() >= (self.buffer_size as f64 * 0.8) as usize {
+        if self.visited.len()
+            >= (self.buffer_size as f64 * 0.8) as usize
+        {
             self.stash_urls();
             self.visited.clear();
         }
@@ -209,7 +278,8 @@ impl Crawler {
         let mut page_data = HashMap::new();
         page_data.insert("link".to_string(), url);
         page_data.insert("content".to_string(), content);
-        page_data.insert("title".to_string(), self.parser.get_title());
+        page_data
+            .insert("title".to_string(), self.parser.get_title());
         page_data
     }
 }
@@ -230,7 +300,11 @@ pub async fn handle_req(
     }
 }
 
-pub fn append_to_vec(visited: &mut VecDeque<String>, hrefs: &Vec<String>, n: usize) {
+pub fn append_to_vec(
+    visited: &mut VecDeque<String>,
+    hrefs: &Vec<String>,
+    n: usize,
+) {
     let mut i = 0;
     for link in hrefs.iter() {
         if i >= n {
@@ -243,6 +317,8 @@ pub fn append_to_vec(visited: &mut VecDeque<String>, hrefs: &Vec<String>, n: usi
 
 #[cfg(test)]
 mod tests {
+    use redis::RedisError;
+
     use super::Crawler;
     use std::{
         collections::VecDeque,
@@ -260,8 +336,8 @@ mod tests {
             Some("test.txt".to_string()),
         );
 
-        crawler.visited[0] = Some("http://example.com".to_string());
-        crawler.visited[1] = Some("http://test.com".to_string());
+        crawler.visited.push(Some("http://example.com".to_string()));
+        crawler.visited.push(Some("http://test.com".to_string()));
 
         crawler.stash_urls();
 
@@ -271,5 +347,61 @@ mod tests {
 
         assert!(contents.contains("http://example.com"));
         assert!(contents.contains("http://test.com"));
+    }
+    
+    #[tokio::test]
+    async fn test_redis_true() -> Result<(), RedisError> {
+        let stop_flag = Arc::new(AtomicBool::new(false));
+        let crawler = Crawler::new::<8>(
+            VecDeque::new(),
+            stop_flag,
+            Some("test.txt".to_string()),
+        );
+        let mut con = crawler
+            .redis_client
+            .get_multiplexed_tokio_connection().await?;
+
+        let _: bool = redis::cmd("FLUSHALL")
+            .query_async(&mut con)
+            .await?;
+
+        let _: bool = redis::cmd("BF.ADD")
+            .arg(&["urls", "http://google.com"])
+            .query_async(&mut con)
+            .await?;
+       
+        let res = crawler.in_redis("http://google.com".to_string()).await?;
+
+        assert!(res);
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_redis_false() -> Result<(), RedisError> {
+        let stop_flag = Arc::new(AtomicBool::new(false));
+        let crawler = Crawler::new::<8>(
+            VecDeque::new(),
+            stop_flag,
+            Some("test.txt".to_string()),
+        );
+        let mut con = crawler
+            .redis_client
+            .get_multiplexed_tokio_connection().await?;
+
+        let _: bool = redis::cmd("FLUSHALL")
+            .query_async(&mut con)
+            .await?;
+
+        let _: bool = redis::cmd("BF.ADD")
+            .arg(&["urls", "http://youtube.com"])
+            .query_async(&mut con)
+            .await?;
+       
+        let res = crawler.in_redis("http://google.com".to_string()).await?;
+
+        assert!(!res);
+
+        Ok(())
     }
 }
