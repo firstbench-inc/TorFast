@@ -75,32 +75,34 @@ kind: Service
 metadata:
   name: elasticsearch
 spec:
-  ports:
-  - port: 9200
+ ports:
+  - name: es-http
+    port: 9200
     targetPort: 9200
-  - port: 9300
+  - name: es-transport
+    port: 9300
     targetPort: 9300
-  selector:
+ selector:
     app: elasticsearch
 
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: crawler
+  name: torfast
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: crawler
+      app: torfast
   template:
     metadata:
       labels:
-        app: crawler
+        app: torfast
     spec:
       containers:
-      - name: crawler
-        image: your-crawler-image:latest
+      - name: torfast
+        image: yassss369/torfast_app:latest
         env:
         - name: REDIS_HOST
           value: "redis"
