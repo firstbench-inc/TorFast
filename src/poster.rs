@@ -16,7 +16,7 @@ impl Poster {
     ) -> Result<(), reqwest::Error> {
         let res = match self
             .client
-            .post("http://elasticsearch:9200/logs/_doc")
+            .post("http://elasticsearch.minikube:9200/logs/_doc")
             .json(data)
             .send()
             .await

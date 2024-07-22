@@ -45,7 +45,7 @@ impl Crawler {
         let poster = Arc::new(Poster::new());
         let parser = Arc::new(Parser::new());
         let redis_client = Arc::new(
-            redis::Client::open("redis://127.0.0.1").unwrap(),
+            redis::Client::open("redis://redis.minikube").unwrap(),
         );
         const NONE: Option<String> = None;
         let visited = Vec::new();
