@@ -31,6 +31,7 @@ kind: Service
 metadata:
   name: redis
 spec:
+  type: LoadBalancer
   ports:
   - port: 6379
     targetPort: 6379
@@ -75,6 +76,7 @@ kind: Service
 metadata:
   name: elasticsearch
 spec:
+ type: LoadBalancer
  ports:
   - name: es-http
     port: 9200
@@ -102,7 +104,8 @@ spec:
     spec:
       containers:
       - name: torfast
-        image: yassss369/torfast_app:latest
+        image: usernam08/torfast:latest
+        imagePullPolicy: Always
         env:
         - name: REDIS_HOST
           value: "redis"
@@ -114,10 +117,24 @@ spec:
           value: "9200"
         ports:
         - containerPort: 9050
-        resources:
-          requests:
-            memory: "500Mi"
-            cpu: "250m"
-          limits:
-            memory: "1Gi"
-            cpu: "500m"
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ubuntu-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ubuntu-deployment
+  template:
+    metadata:
+      labels:
+        app: ubuntu-deployment
+    spec:
+      containers:
+      - name: ubuntu-deployment
+        image: ubuntu:22.04
+        command: ["/bin/bash", "-c", "while true; do sleep 30; done;"]
+
