@@ -219,14 +219,12 @@ impl Crawler {
             .redis_client
             .get_multiplexed_tokio_connection()
             .await?;
-        println!("fail 1");
 
         // con.
         let res: isize = redis::cmd("BF.EXISTS")
             .arg(&["urls", url.as_str()])
             .query_async(&mut con)
             .await?;
-        println!("fail 2");
         
         if res == 1 {
             return RedisResult::Ok(true)
@@ -236,7 +234,6 @@ impl Crawler {
             .arg(&["urls", url.as_str()])
             .query_async(&mut con)
             .await?;
-        println!("fail 3");
 
         RedisResult::Ok(false)
     }
