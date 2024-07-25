@@ -123,24 +123,3 @@ spec:
           value: "9200"
         ports:
         - containerPort: 9050
----
-
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: ubuntu-deployment
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: ubuntu-deployment
-  template:
-    metadata:
-      labels:
-        app: ubuntu-deployment
-    spec:
-      containers:
-      - name: ubuntu-deployment
-        image: ubuntu:22.04
-        command: ["/bin/bash", "-c", "while true; do sleep 30; done;"]
-

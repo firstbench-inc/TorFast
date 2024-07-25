@@ -155,6 +155,7 @@ impl Crawler {
                             let mut post = Poster::new();
                             if p.set_handle(&resp, &base_url).is_ok()
                             {
+                                print!("{}, {}: ", sc.lock().unwrap(), fc.lock().unwrap());
                                 p.parse();
                                 let mut y = y.lock().unwrap();
                                 append_to_vec(

@@ -9,12 +9,13 @@ extern crate markup5ever_rcdom as rcdom;
 
 use std::collections::VecDeque;
 use std::fs::File;
-use std::io::{self, Read};
+use std::io::{self, BufRead, BufReader, Read};
 use std::sync::{
     atomic::{AtomicBool, Ordering},
     Arc,
 };
-use std::thread;
+use std::time::Duration;
+use std::{env, thread};
 use tokio::sync::Notify;
 
 #[tokio::main()]
@@ -274,12 +275,25 @@ async fn main() -> Result<(), reqwest::Error> {
         "http://rapeherfqriv56f4oudqxzqt55sadsofzltgjv4lfdbw4aallyp33vqd.onion/"]
      ;
 
-    let to_visit = VecDeque::from(seedlist.map(String::from));
-    let notify = Arc::new(Notify::new());
-    let stop_flag = Arc::new(AtomicBool::new(false));
+    let worker_number = env::var("WORKER_NUMBER").expect("WORKER_NUMBER must be set").parse::<usize>().expect("WORKER_NUMBER must be a number");
+    let start_line = (worker_number - 1) * 1000;
+    let end_line = worker_number * 1000;
 
-    // Spawn a thread to listen for the 'q' key press
-    let notify_clone = Arc::clone(&notify);
+    let file = File::open("urls.txt").unwrap();
+    let reader = BufReader::new(file);
+
+    let to_visit: VecDeque<String> = reader.lines()
+        .enumerate()
+        .filter_map(|(i, line)| {
+            if i >= start_line && (i < end_line || worker_number == 3) {
+                Some(line.unwrap())
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    let stop_flag = Arc::new(AtomicBool::new(false));
     let stop_flag_clone = Arc::clone(&stop_flag);
     thread::spawn(move || {
         let mut buffer = [0; 1];
@@ -289,11 +303,11 @@ async fn main() -> Result<(), reqwest::Error> {
             if buffer[0] == b'q' {
                 println!("notified");
                 stop_flag_clone.store(true, Ordering::SeqCst);
-                notify_clone.notify_one();
                 break;
             }
         }
     });
+
 
     let mut crawler = crawler::Crawler::new::<500>(
         to_visit,
