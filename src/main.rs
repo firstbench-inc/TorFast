@@ -275,17 +275,22 @@ async fn main() -> Result<(), reqwest::Error> {
         "http://rapeherfqriv56f4oudqxzqt55sadsofzltgjv4lfdbw4aallyp33vqd.onion/"]
      ;
 
-    let worker_number = env::var("WORKER_NUMBER").expect("WORKER_NUMBER must be set").parse::<usize>().expect("WORKER_NUMBER must be a number");
+    let worker_number = env::var("WORKER_NUMBER")
+        .expect("WORKER_NUMBER must be set")
+        .parse::<usize>()
+        .expect("WORKER_NUMBER must be a number");
     let start_line = (worker_number - 1) * 1000;
     let end_line = worker_number * 1000;
 
     let file = File::open("urls.txt").unwrap();
     let reader = BufReader::new(file);
 
-    let to_visit: VecDeque<String> = reader.lines()
+    let to_visit: VecDeque<String> = reader
+        .lines()
         .enumerate()
         .filter_map(|(i, line)| {
-            if i >= start_line && (i < end_line || worker_number == 3) {
+            if i >= start_line && (i < end_line || worker_number == 3)
+            {
                 Some(line.unwrap())
             } else {
                 None
@@ -307,7 +312,6 @@ async fn main() -> Result<(), reqwest::Error> {
             }
         }
     });
-
 
     let mut crawler = crawler::Crawler::new::<500>(
         to_visit,
