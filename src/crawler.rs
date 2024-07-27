@@ -27,9 +27,9 @@ pub struct Crawler {
     poster: Arc<Poster>,
     parser: Arc<Parser>,
     stop_flag: Arc<AtomicBool>,
-    visited: Vec<Option<String>>,
+    visited: Arc<Mutex<Vec<Option<String>>>>,
     visited_n: usize,
-    file: Option<std::fs::File>,
+    file: Arc<Mutex<Option<std::fs::File>>>,
     semaphore: Arc<tokio::sync::Semaphore>,
     buffer_size: usize,
 }
@@ -44,7 +44,7 @@ impl Crawler {
         let poster = Arc::new(Poster::new());
         let parser = Arc::new(Parser::new());
         const NONE: Option<String> = None;
-        let visited = Vec::new();
+        let visited = Arc::new(Mutex::new(Vec::new()));
         let buffer_size = N;
         let visited_n = 0;
         let semaphore = Arc::new(tokio::sync::Semaphore::new(500));
@@ -68,6 +68,7 @@ impl Crawler {
             }
             None => None,
         };
+        let file = Arc::new(Mutex::new(file));
 
         Self {
             to_visit,
@@ -99,13 +100,16 @@ impl Crawler {
 
         loop {
             let url;
-            let mut x = to_visit.lock().unwrap();
-            match x.pop_front() {
-                Some(u) => {
-                    url = u;
-                }
-                None => {
-                    continue;
+            {
+                let mut x = to_visit.clone();
+                let mut x = to_visit.lock().unwrap();
+                match x.pop_front() {
+                    Some(u) => {
+                        url = u;
+                    }
+                    None => {
+                        continue;
+                    }
                 }
             }
 
@@ -113,13 +117,25 @@ impl Crawler {
                 break;
             }
 
+            let semaphore = self.semaphore.clone();
+            let buf_size = self.buffer_size;
+            let file = self.file.clone();
+            let mut visited = self.visited.clone();
+
             let _ = task::spawn(async move {
-                match Crawler::in_redis(url.clone(), redis_client.clone()).await {
+                match Crawler::in_redis(
+                    url.clone(),
+                    redis_client.clone(),
+                )
+                .await
+                {
                     Ok(resp) => {
                         if resp {
                             return ();
                         }
-                        self.add_url(&url);
+                        let mut visited = visited.lock().unwrap();
+                        let mut file = file.lock().unwrap();
+                        add_url(&url, visited.borrow_mut(), file.borrow_mut(), buf_size);
                     }
                     Err(e) => {
                         println!("Failed to check redis: {:?}", e);
@@ -131,8 +147,6 @@ impl Crawler {
                 let f = fetcher.clone();
                 let po = poster.clone();
                 let y = to_visit.clone();
-                let semaphore = self.semaphore.clone();
-                let buf_size = self.buffer_size;
                 let base_url = url.clone();
                 let sc = success_count.clone();
                 let fc = failure_count.clone();
@@ -162,11 +176,11 @@ impl Crawler {
                                         fc.lock().unwrap()
                                     );
                                     p.parse();
-                                    println!(
-                                        "locking y: {}, {}",
-                                        p.get_hrefs().len(),
-                                        u
-                                    );
+                                    // println!(
+                                    //     "locking y: {}, {}",
+                                    //     p.get_hrefs().len(),
+                                    //     u
+                                    // );
                                     let mut y = match y.lock() {
                                         Ok(y) => y,
                                         Err(e) => {
@@ -235,11 +249,12 @@ impl Crawler {
         Ok(())
     }
 
-    async fn in_redis(url: String, redis_client: Arc<redis::Client>) -> RedisResult<bool> {
-        let mut con = 
-            redis_client
-            .get_multiplexed_tokio_connection()
-            .await?;
+    async fn in_redis(
+        url: String,
+        redis_client: Arc<redis::Client>,
+    ) -> RedisResult<bool> {
+        let mut con =
+            redis_client.get_multiplexed_tokio_connection().await?;
 
         // con.
         let res: isize = redis::cmd("BF.EXISTS")
@@ -259,35 +274,6 @@ impl Crawler {
         RedisResult::Ok(false)
     }
 
-    fn add_url(&mut self, url: &String) {
-        if self.visited.len()
-            >= (self.buffer_size as f64 * 0.8) as usize
-        {
-            self.stash_urls();
-            self.visited.clear();
-        }
-        self.visited_n += 1;
-        self.visited.push(Some(url.clone()));
-    }
-
-    fn stash_urls(&mut self) {
-        if let Some(file) = &mut self.file {
-            let mut s = String::new();
-            for url in self.visited.iter() {
-                match url {
-                    Some(url) => {
-                        s.push_str(url.as_str());
-                        s.push_str("\n");
-                    }
-                    None => break,
-                }
-            }
-            if let Err(e) = file.write_all(s.as_bytes()) {
-                println!("Failed to write to file: {:?}", e);
-            }
-        }
-    }
-
     fn generate_page_data<'a, 'b>(
         &'a self,
         url: &'a String,
@@ -302,6 +288,40 @@ impl Crawler {
         page_data
             .insert("title".to_string(), self.parser.get_title());
         page_data
+    }
+}
+
+fn add_url(
+    url: &String,
+    mut visited: &mut Vec<Option<String>>,
+    file: &mut Option<std::fs::File>,
+    buffer_size: usize,
+) {
+    if visited.len() >= (buffer_size as f64 * 0.8) as usize {
+        stash_urls(&mut visited, file);
+        visited.clear();
+    }
+    visited.push(Some(url.clone()));
+}
+
+fn stash_urls(
+    visited: &mut Vec<Option<String>>,
+    file: &mut Option<std::fs::File>,
+) {
+    if let Some(file) = file {
+        let mut s = String::new();
+        for url in visited.iter() {
+            match url {
+                Some(url) => {
+                    s.push_str(url.as_str());
+                    s.push_str("\n");
+                }
+                None => break,
+            }
+        }
+        if let Err(e) = file.write_all(s.as_bytes()) {
+            println!("Failed to write to file: {:?}", e);
+        }
     }
 }
 
