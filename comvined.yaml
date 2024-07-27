@@ -111,7 +111,6 @@ spec:
       containers:
       - name: torfast
         image: usernam08/torfast:latest
-        command: ["/bin/bash", "-c", "while true; do sleep 30; done;"]
         imagePullPolicy: Always
         env:
         - name: REDIS_HOST
