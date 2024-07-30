@@ -38,8 +38,6 @@ RUN echo "tor &" >> "tor.sh"
 RUN echo "sh tor.sh > /dev/null" >> prog.sh
 RUN echo "sleep 15" >> prog.sh
 # RUN echo "/bin/systemctl start elasticsearch.service" >> prog.sh
-RUN echo "/usr/local/bin/crawle-rs" >> prog.sh
+RUN echo "/usr/local/bin/crawle-rs urls.txt" >> prog.sh
 
 RUN rm -f /etc/apt/apt.conf.d/docker-clean; echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.conf.d/keep-cache
-
-CMD ["sh", "prog.sh"]

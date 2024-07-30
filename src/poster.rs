@@ -16,15 +16,16 @@ impl Poster {
     ) -> Result<(), reqwest::Error> {
         let res = match self
             .client
-            .post("http://elasticsearch:9200/logs/_doc")
+            .post("http://elasticsearch.default:9200/logs/_doc")
             .json(data)
             .send()
-            .await {
-                Ok(res) => res,
-                Err(e) => {
-                    return Err(e);
-                }
-            };
+            .await
+        {
+            Ok(res) => res,
+            Err(e) => {
+                return Err(e);
+            }
+        };
 
         println!("Posted data: {:?}", res);
         Ok(())

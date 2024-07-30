@@ -9,12 +9,14 @@ extern crate markup5ever_rcdom as rcdom;
 
 use std::collections::VecDeque;
 use std::fs::File;
-use std::io::{self, Read};
+use std::io::{self, BufRead, BufReader, Read};
+use std::path::Path;
 use std::sync::{
     atomic::{AtomicBool, Ordering},
     Arc,
 };
-use std::thread;
+use std::time::Duration;
+use std::{env, thread};
 use tokio::sync::Notify;
 
 #[tokio::main()]
@@ -274,12 +276,31 @@ async fn main() -> Result<(), reqwest::Error> {
         "http://rapeherfqriv56f4oudqxzqt55sadsofzltgjv4lfdbw4aallyp33vqd.onion/"]
      ;
 
-    let to_visit = VecDeque::from(seedlist.map(String::from));
-    let notify = Arc::new(Notify::new());
-    let stop_flag = Arc::new(AtomicBool::new(false));
 
-    // Spawn a thread to listen for the 'q' key press
-    let notify_clone = Arc::clone(&notify);
+    let args: Vec<String> = env::args().collect();
+    let filename = &args[1];
+
+    let path = Path::new(filename);
+    let display = path.display();
+
+    let file = match File::open(&path) {
+        Err(why) => panic!("couldn't open {}: {}", display, why),
+        Ok(file) => file,
+    };
+
+    let reader = io::BufReader::new(file);
+
+    let mut to_visit: VecDeque<String> = VecDeque::new();
+
+    for line in reader.lines() {
+        match line {
+            Ok(url) => to_visit.push_back(url),
+            Err(why) => println!("couldn't read line: {}", why),
+        }
+    }
+
+
+    let stop_flag = Arc::new(AtomicBool::new(false));
     let stop_flag_clone = Arc::clone(&stop_flag);
     thread::spawn(move || {
         let mut buffer = [0; 1];
@@ -289,11 +310,11 @@ async fn main() -> Result<(), reqwest::Error> {
             if buffer[0] == b'q' {
                 println!("notified");
                 stop_flag_clone.store(true, Ordering::SeqCst);
-                notify_clone.notify_one();
                 break;
             }
         }
     });
+
 
     let mut crawler = crawler::Crawler::new::<500>(
         to_visit,
@@ -302,7 +323,6 @@ async fn main() -> Result<(), reqwest::Error> {
     );
 
     let _ = crawler.start().await;
-   
-    Ok(())
 
+    Ok(())
 }
