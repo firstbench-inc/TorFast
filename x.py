@@ -16,9 +16,9 @@ def split_file(input_file, output_prefix, lines_per_file):
     print(f"File split into {num_files} files of {lines_per_file} lines each.")
 
 # Define input parameters
-input_file = 'urls.txt'
+input_file = 'new_urls.txt'
 output_prefix = 'a'
-lines_per_file = 750
+lines_per_file = 43
 
 # Run the function
 split_file(input_file, output_prefix, lines_per_file)
