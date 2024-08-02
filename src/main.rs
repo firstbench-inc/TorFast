@@ -276,7 +276,6 @@ async fn main() -> Result<(), reqwest::Error> {
         "http://rapeherfqriv56f4oudqxzqt55sadsofzltgjv4lfdbw4aallyp33vqd.onion/"]
      ;
 
-
     let args: Vec<String> = env::args().collect();
     let filename = &args[1];
 
@@ -299,7 +298,6 @@ async fn main() -> Result<(), reqwest::Error> {
         }
     }
 
-
     let stop_flag = Arc::new(AtomicBool::new(false));
     let stop_flag_clone = Arc::clone(&stop_flag);
     thread::spawn(move || {
@@ -314,7 +312,6 @@ async fn main() -> Result<(), reqwest::Error> {
             }
         }
     });
-
 
     let mut crawler = crawler::Crawler::new::<500>(
         to_visit,

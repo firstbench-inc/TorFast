@@ -27,7 +27,7 @@ impl Poster {
             }
         };
 
-        println!("Posted data: {:?}", res);
+        // println!("Posted data: {:?}", res);
         Ok(())
     }
 }

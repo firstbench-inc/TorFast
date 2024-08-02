@@ -25,11 +25,11 @@ impl Fetcher {
     ) -> Result<String, reqwest::Error> {
         let instant = Instant::now();
         let res = self.client.get(url.into()).send().await?;
-        println!(
-            "Status: {}, Time: {}",
-            res.status(),
-            instant.elapsed().as_millis()
-        );
+        // println!(
+        //     "Status: {}, Time: {}",
+        //     res.status(),
+        //     instant.elapsed().as_millis()
+        // );
 
         let text = res.text().await?;
         Ok(text)

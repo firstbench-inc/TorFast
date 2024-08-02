@@ -21,6 +21,13 @@ use redis::{self, RedisError, RedisResult};
 
 use crate::{fetcher::Fetcher, parser::Parser, poster::Poster};
 
+pub struct Link {
+    pub url: String,
+    pub timestamp: std::time::Instant,
+    pub duration: std::time::Duration,
+    pub parse_dur: std::time::Duration,
+}
+
 pub struct Crawler {
     to_visit: VecDeque<String>,
     fetcher: Arc<Fetcher>,
@@ -45,7 +52,7 @@ impl Crawler {
         let poster = Arc::new(Poster::new());
         let parser = Arc::new(Parser::new());
         let redis_client = Arc::new(
-            redis::Client::open("redis://redis.default").unwrap(),
+            redis::Client::open("redis://127.0.0.1").unwrap(),
         );
         const NONE: Option<String> = None;
         let visited = Vec::new();
@@ -98,6 +105,7 @@ impl Crawler {
         let poster = Arc::new(Poster::new());
         let mut handle_vec: Vec<task::JoinHandle<()>> = vec![];
         let to_visit = Arc::new(Mutex::new(self.to_visit.clone()));
+        let start_time = std::time::Instant::now();
 
         loop {
             let url;
@@ -129,7 +137,14 @@ impl Crawler {
                 }
             }
 
-            println!("Processing URL: {}", url); // Debug statement
+            let link = Link {
+                url: url.clone(),
+                timestamp: start_time,
+                duration: std::time::Duration::from_secs(0),
+                parse_dur: std::time::Duration::from_secs(0),
+            };
+
+            // println!("Processing URL: {}", url); // Debug statement
 
             let f = fetcher.clone();
             let po = poster.clone();
@@ -142,8 +157,10 @@ impl Crawler {
 
             let handle = task::spawn(async move {
                 let sem_handle = semaphore.acquire().await.unwrap();
+                let io_timer = std::time::Instant::now();
                 match f.fetch(&url).await {
                     Ok(resp) => {
+                        let io_dur = io_timer.elapsed();
                         match sc.lock() {
                             Ok(mut sc) => *sc += 1,
                             Err(e) => println!("Failed to increment success count: {:?}", e),
@@ -152,13 +169,27 @@ impl Crawler {
                         let u = url.clone();
                         // let post = po.clone();
                         let y = y;
+                        let mut link = link;
+                        link.duration = io_dur;
                         task::spawn(async move {
                             let mut p = Parser::new();
                             let mut post = Poster::new();
                             if p.set_handle(&resp, &base_url).is_ok()
                             {
-                                print!("{}, {}: ", sc.lock().unwrap(), fc.lock().unwrap());
+                                let parse_timer =
+                                    std::time::Instant::now();
                                 p.parse();
+                                let parse_dur = parse_timer.elapsed();
+                                link.parse_dur = parse_dur;
+                                println!(
+                                    "{}, {}, {}, {}, {}, {}: ",
+                                    sc.lock().unwrap(),
+                                    fc.lock().unwrap(),
+                                    link.url,
+                                    link.timestamp.elapsed().as_secs(),
+                                    link.duration.as_millis(),
+                                    link.parse_dur.as_micros()
+                                );
                                 let mut y = y.lock().unwrap();
                                 append_to_vec(
                                     y.borrow_mut(),
@@ -228,9 +259,9 @@ impl Crawler {
             .arg(&["urls", url.as_str()])
             .query_async(&mut con)
             .await?;
-        
+
         if res == 1 {
-            return RedisResult::Ok(true)
+            return RedisResult::Ok(true);
         };
 
         let _: bool = redis::cmd("BF.ADD")
@@ -351,7 +382,7 @@ mod tests {
         assert!(contents.contains("http://example.com"));
         assert!(contents.contains("http://test.com"));
     }
-    
+
     #[tokio::test]
     async fn test_redis_true() -> Result<(), RedisError> {
         let stop_flag = Arc::new(AtomicBool::new(false));
@@ -362,18 +393,19 @@ mod tests {
         );
         let mut con = crawler
             .redis_client
-            .get_multiplexed_tokio_connection().await?;
-
-        let _: bool = redis::cmd("FLUSHALL")
-            .query_async(&mut con)
+            .get_multiplexed_tokio_connection()
             .await?;
+
+        let _: bool =
+            redis::cmd("FLUSHALL").query_async(&mut con).await?;
 
         let _: bool = redis::cmd("BF.ADD")
             .arg(&["urls", "http://google.com"])
             .query_async(&mut con)
             .await?;
-       
-        let res = crawler.in_redis("http://google.com".to_string()).await?;
+
+        let res =
+            crawler.in_redis("http://google.com".to_string()).await?;
 
         assert!(res);
 
@@ -390,18 +422,19 @@ mod tests {
         );
         let mut con = crawler
             .redis_client
-            .get_multiplexed_tokio_connection().await?;
-
-        let _: bool = redis::cmd("FLUSHALL")
-            .query_async(&mut con)
+            .get_multiplexed_tokio_connection()
             .await?;
+
+        let _: bool =
+            redis::cmd("FLUSHALL").query_async(&mut con).await?;
 
         let _: bool = redis::cmd("BF.ADD")
             .arg(&["urls", "http://youtube.com"])
             .query_async(&mut con)
             .await?;
-       
-        let res = crawler.in_redis("http://google.com".to_string()).await?;
+
+        let res =
+            crawler.in_redis("http://google.com".to_string()).await?;
 
         assert!(!res);
 
